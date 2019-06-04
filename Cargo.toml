@@ -1,0 +1,11 @@
+[package]
+name = "rj-debug"
+version = "0.1.0"
+authors = ["penguin"]
+edition = "2018"
+
+[lib]
+name = "rdebug"
+crate-type = ["staticlib"]
+
+[dependencies]
