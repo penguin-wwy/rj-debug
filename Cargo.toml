@@ -4,8 +4,8 @@ version = "0.1.0"
 authors = ["penguin"]
 edition = "2018"
 
-[lib]
-crate-type = ["staticlib"]
+#[lib]
+#crate-type = ["staticlib"]
 
 [dependencies]
 serde = "1.0"
