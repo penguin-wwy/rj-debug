@@ -1,11 +1,13 @@
 [package]
-name = "rj-debug"
+name = "rj_debug"
 version = "0.1.0"
 authors = ["penguin"]
 edition = "2018"
 
 [lib]
-name = "rdebug"
 crate-type = ["staticlib"]
 
 [dependencies]
+serde = "1.0"
+serde_json = "1.0"
+serde_derive = "1.0"

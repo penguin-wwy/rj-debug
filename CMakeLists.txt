@@ -13,3 +13,5 @@ if(UNIX)
 endif()
 
 add_library(rjdebug SHARED src/debug.c)
+
+add_executable(main src/debug.c)
