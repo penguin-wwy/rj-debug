@@ -12,6 +12,8 @@ if(UNIX)
     )
 endif()
 
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/target/debug)
 add_library(rjdebug SHARED src/debug.c)
-
-add_executable(main src/debug.c)
+target_link_libraries(rjdebug "-Wl,--whole-archive" rj_debug "-Wl,--no-whole-archive")
+#set(CMAKE_LINK_LIBRARY_SUFFIX "${CMAKE_LINK_LIBRARY_SUFFIX} -lpthread -ldl")
+#add_executable(main src/debug.c)
