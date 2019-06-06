@@ -4,5 +4,6 @@ extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
 pub mod native;
+pub mod wrapper;
 pub mod config;
 pub mod load;

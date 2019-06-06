@@ -6,6 +6,7 @@ const NULL_STRING: &'static str = "<null>";
 
 pub trait JsonNew {
     fn new_from_str(data: &str) -> Self;
+    fn vec_from_str(data: &str) -> Vec<Self> where Self: std::marker::Sized;
 }
 
 #[derive(Deserialize, Serialize)]
@@ -47,6 +48,10 @@ impl BreakPoint {
 impl JsonNew for BreakPoint {
     fn new_from_str(data: &str) -> Self {
         serde_json::from_str(data).expect("Break point parse json error!")
+    }
+
+    fn vec_from_str(data: &str) -> Vec<Self> {
+        serde_json::from_str(data).expect("Break point array parse json error!")
     }
 }
 
