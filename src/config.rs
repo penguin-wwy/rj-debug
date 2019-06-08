@@ -64,3 +64,19 @@ impl fmt::Display for BreakPoint {
         )
     }
 }
+
+pub struct Configuration {
+    pub bytecode_dump: bool,
+    pub heap_print: bool,
+    pub break_point_json: Option<String>,
+}
+
+impl JsonNew for Configuration {
+    fn new_from_str(data: &str) -> Self {
+        serde_json::from_str(data).expect("Config file parse json error!")
+    }
+
+    fn vec_from_str(data: &str) -> Vec<Self> {
+        serde_json::from_str(data).expect("Config files parse json error!")
+    }
+}

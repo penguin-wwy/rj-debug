@@ -93,7 +93,7 @@ pub struct JVMTI_Capabilities {
 }
 
 impl JVMTI_Capabilities {
-    fn new() -> Self {
+    pub fn new() -> Self {
         JVMTI_Capabilities {
             ..Default::default()
         }
