@@ -12,7 +12,7 @@ fn parse_break_point() {
             "line": 1
         }
     "#;
-    let b: BreakPoint = BreakPoint::new_from_str(data);
+    let b: BreakPoint = *BreakPoint::new_from_str(data);
     assert_eq!(*b.get_line_number().unwrap(), 1 as u32);
 }
 
@@ -26,7 +26,7 @@ fn parse_null_break_point() {
             "line": 1
         }
     "#;
-    let b: BreakPoint = BreakPoint::new_from_str(data);
+    let b: BreakPoint = *BreakPoint::new_from_str(data);
     assert_eq!(b.get_method_full_name().unwrap(), "<null><null>");
 }
 
@@ -48,7 +48,7 @@ fn parse_break_points() {
             }
         ]
     "#;
-    let bv: Vec<BreakPoint> = BreakPoint::vec_from_str(data);
+    let bv: Vec<BreakPoint> = *BreakPoint::vec_from_str(data);
     assert_eq!(bv.len(), 2);
     assert_eq!(*bv[0].get_line_number().unwrap(), 2 as u32);
     assert_eq!(bv[1].get_method_full_name().unwrap(), "<null><null>");

@@ -2,14 +2,18 @@ use super::native::jni_md::*;
 use super::native::jni::*;
 use super::native::jvmti::*;
 use super::config::*;
-use super::wrapper::*;
+use super::wrapper::capabilities::JVMTI_Capabilities;
 use std::os::raw::{c_char, c_void};
 use std::ffi::CStr;
 use std::fs::File;
 use std::io::Read;
 use std::ptr;
+use super::logger;
+use simple_logging::{log_to, log_to_file};
+use log::LevelFilter::{Info, Debug};
+use core::borrow::Borrow;
 
-fn parse_config_file(path: *mut c_char) -> Option<Configuration> {
+fn parse_config_file(path: *mut c_char) -> Option<Box<Configuration>> {
     let path_name = unsafe {
         assert!(!path.is_null());
         CStr::from_ptr(path)
@@ -20,12 +24,12 @@ fn parse_config_file(path: *mut c_char) -> Option<Configuration> {
     if let Ok(_) = file.read_to_string(&mut content) {
         Some(Configuration::new_from_str(content.as_str()))
     } else {
-        println!("config file read failed!");
+        logger::error("config file read failed!");
         None
     }
 }
 
-fn parse_bk_file(path: &str) -> Option<Vec<BreakPoint>> {
+fn parse_bk_file(path: &str) -> Option<Box<Vec<BreakPoint>>> {
     let mut file = File::open(path).expect("breakpoint file open failed!");
     let mut content = String::new();
     if let Ok(_) = file.read_to_string(&mut content) {
@@ -36,50 +40,61 @@ fn parse_bk_file(path: &str) -> Option<Vec<BreakPoint>> {
 }
 
 #[no_mangle]
-pub extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserved: *mut c_void) -> jint {
-    let config = match parse_config_file(opts) {
-        Some(c) => c,
-        None => return JNI_ERR,
-    };
-    println!("parse config...");
+pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserved: *mut c_void) -> jint {
+        GLOBAL_CONFIG.config = match parse_config_file(opts) {
+            Some(c) => Some(c),
+            None => return JNI_ERR,
+        };
+    let config :&Configuration = GLOBAL_CONFIG.config.as_ref().unwrap().borrow();
+
+    logger::info("parse config...");
 
     let mut null_ptr = ptr::null_mut() as *mut c_void;
     let jvmti_ptr = &mut null_ptr as *mut *mut c_void;
-    if JNI_OK != unsafe {(**vm).GetEnv.unwrap()(vm, jvmti_ptr, JVMTI_VERSION_1_2)} {
-        println!("ERROR: Unable to access JVMTI.");
-        return JNI_ERR;
+    logger::assert_log(
+        (**vm).GetEnv.unwrap()(vm, jvmti_ptr, JVMTI_VERSION_1_2),
+        Some("Unable to access JVMTI."),
+        None
+    );
+    let jvmti = (*jvmti_ptr) as *mut jvmtiEnv;
+    logger::info("access JVMTI...");
+
+    let mut log_level = Info;
+    if (config.verbose) {
+        log_level = Debug;
     }
-    let jvmti = unsafe {(*jvmti_ptr) as *mut jvmtiEnv};
-    println!("access JVMTI...");
+    if (config.log_file.is_some()) {
+        log_to_file(config.log_file.as_ref().unwrap(), log_level);
+    } else {
+        log_to(std::io::stdout(), Info);
+    }
 
-    let c = capabilities::JVMTI_Capabilities::new();
+    let mut c: JVMTI_Capabilities = JVMTI_Capabilities::new();
     if (config.bytecode_dump) {
-
+        c.can_get_bytecodes = true;
     }
     if (config.heap_print) {
 
     }
+
     if (config.break_point_json.is_some()) {
-
+        c.can_access_local_variables = true;
+        c.can_generate_breakpoint_events = true;
+        GLOBAL_CONFIG.breakpoints = parse_bk_file(config.break_point_json.as_ref().unwrap().as_str());
     }
-    if JNI_OK != unsafe {(**jvmti).AddCapabilities.unwrap()(jvmti, &c.to_native())} {
-        println!("ERROR: add capabilities failed!");
-        return JNI_ERR;
+    if (config.watch_var.is_some()) {
+        c.can_access_local_variables = true;
+        c.can_generate_field_access_events = true;
     }
+    logger::assert_log(
+        (**jvmti).AddCapabilities.unwrap()(jvmti, &c.to_native()),
+        Some("add capabilities failed!"),
+        Some("add capabilities...")
+    );
 
-    return on_load(vm, jvmti, opts);
+    return on_load(vm, jvmti);
 }
 
-pub extern fn on_load(jvm: *mut JavaVM, jvmti: *mut jvmtiEnv, opts: *const c_char) -> jint {
-    let c_str = unsafe {
-        assert!(!opts.is_null());
-        CStr::from_ptr(opts)
-    };
-    let mut file = File::open(c_str.to_str().unwrap()).unwrap();
-    let mut data = String::new();
-    file.read_to_string(&mut data).unwrap();
-
-    let b = BreakPoint::new_from_str(data.as_str());
-    println!("{}", b);
+pub extern fn on_load(jvm: *mut JavaVM, jvmti: *mut jvmtiEnv) -> jint {
     return JNI_OK;
 }
