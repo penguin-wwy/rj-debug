@@ -908,6 +908,14 @@ pub struct jvmtiEventCallbacks {
     pub ObjectFree: jvmtiEventObjectFree,
     pub VMObjectAlloc: jvmtiEventVMObjectAlloc,
 }
+impl jvmtiEventCallbacks {
+    pub fn new() -> Self {
+        jvmtiEventCallbacks {
+            ..Default::default()
+        }
+    }
+}
+
 impl ::std::clone::Clone for jvmtiEventCallbacks {
     fn clone(&self) -> Self { *self }
 }

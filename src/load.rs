@@ -12,6 +12,7 @@ use super::logger;
 use simple_logging::{log_to, log_to_file};
 use log::LevelFilter::{Info, Debug};
 use core::borrow::Borrow;
+use std::mem::size_of;
 
 fn parse_config_file(path: *mut c_char) -> Option<Box<Configuration>> {
     let path_name = unsafe {
@@ -80,6 +81,7 @@ pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserv
     if (config.break_point_json.is_some()) {
         c.can_access_local_variables = true;
         c.can_generate_breakpoint_events = true;
+        c.can_get_line_numbers = true;
         GLOBAL_CONFIG.breakpoints = parse_bk_file(config.break_point_json.as_ref().unwrap().as_str());
     }
     if (config.watch_var.is_some()) {
@@ -95,6 +97,12 @@ pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserv
     return on_load(vm, jvmti);
 }
 
-pub extern fn on_load(jvm: *mut JavaVM, jvmti: *mut jvmtiEnv) -> jint {
+pub unsafe extern fn on_load(jvm: *mut JavaVM, jvmti: *mut jvmtiEnv) -> jint {
+
+    let mut call_back = jvmtiEventCallbacks::new();
+    logger::assert_log((**jvmti).SetEventCallbacks.unwrap()(jvmti, &call_back, size_of::<jvmtiEventCallbacks>() as jint),
+        Some("set event callbacks failed!"),
+        Some("set event callbacks success!")
+    );
     return JNI_OK;
 }
