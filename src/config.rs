@@ -1,12 +1,23 @@
 use std::fmt;
+use std::mem;
+use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use serde_json::{Result, Value};
 
+use super::logger;
+use core::borrow::Borrow;
+
 const NULL_STRING: &'static str = "<null>";
 
+pub static mut GLOBAL_CONFIG: GConfig = GConfig {
+    config: None,
+    breakpoints: None,
+    watch_var: None,
+};
+
 pub trait JsonNew {
-    fn new_from_str(data: &str) -> Self;
-    fn vec_from_str(data: &str) -> Vec<Self> where Self: std::marker::Sized;
+    fn new_from_str(data: &str) -> Box<Self>;
+    fn vec_from_str(data: &str) -> Box<Vec<Self>> where Self: std::marker::Sized;
 }
 
 #[derive(Deserialize, Serialize)]
@@ -46,12 +57,12 @@ impl BreakPoint {
 }
 
 impl JsonNew for BreakPoint {
-    fn new_from_str(data: &str) -> Self {
-        serde_json::from_str(data).expect("Break point parse json error!")
+    fn new_from_str(data: &str) -> Box<Self> {
+        Box::new(serde_json::from_str(data).expect("Break point parse json error!"))
     }
 
-    fn vec_from_str(data: &str) -> Vec<Self> {
-        serde_json::from_str(data).expect("Break point array parse json error!")
+    fn vec_from_str(data: &str) -> Box<Vec<Self>> {
+        Box::new(serde_json::from_str(data).expect("Break point array parse json error!"))
     }
 }
 
@@ -65,18 +76,37 @@ impl fmt::Display for BreakPoint {
     }
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct WatchVar {
+    var_name: Option<String>,
+    class_name: Option<String>,
+    method_name: Option<String>,
+    line_start: Option<u32>,
+    line_end: Option<u32>,
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct Configuration {
+    pub verbose: bool,
+    pub log_file: Option<String>,
     pub bytecode_dump: bool,
     pub heap_print: bool,
     pub break_point_json: Option<String>,
+    pub watch_var: Option<String>,
 }
 
 impl JsonNew for Configuration {
-    fn new_from_str(data: &str) -> Self {
-        serde_json::from_str(data).expect("Config file parse json error!")
+    fn new_from_str(data: &str) -> Box<Self> {
+        Box::new(serde_json::from_str(data).expect("Config file parse json error!"))
     }
 
-    fn vec_from_str(data: &str) -> Vec<Self> {
-        serde_json::from_str(data).expect("Config files parse json error!")
+    fn vec_from_str(data: &str) -> Box<Vec<Self>> {
+        Box::new(serde_json::from_str(data).expect("Config files parse json error!"))
     }
+}
+
+pub struct GConfig {
+    pub config: Option<Box<Configuration>>,
+    pub breakpoints: Option<Box<Vec<BreakPoint>>>,
+    pub watch_var: Option<Box<Vec<WatchVar>>>,
 }
