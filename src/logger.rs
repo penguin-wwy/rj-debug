@@ -9,7 +9,9 @@ pub fn assert_log(res: jint, error_message: Option<&str>, succ_message: Option<&
         }
         exit(JNI_ERR)
     } else {
-        log::info!("{}", succ_message.unwrap());
+        if (succ_message.is_some()) {
+            log::info!("{}", succ_message.unwrap());
+        }
     }
 }
 

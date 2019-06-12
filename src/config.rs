@@ -15,6 +15,13 @@ pub static mut GLOBAL_CONFIG: GConfig = GConfig {
     watch_var: None,
 };
 
+pub unsafe fn config() -> &'static Configuration {
+    if GLOBAL_CONFIG.config.is_none() {
+        panic!("config not init!!!");
+    }
+    GLOBAL_CONFIG.config.as_ref().unwrap().borrow()
+}
+
 pub trait JsonNew {
     fn new_from_str(data: &str) -> Box<Self>;
     fn vec_from_str(data: &str) -> Box<Vec<Self>> where Self: std::marker::Sized;
@@ -91,6 +98,7 @@ pub struct Configuration {
     pub log_file: Option<String>,
     pub bytecode_dump: bool,
     pub heap_print: bool,
+    pub class_print: bool,
     pub break_point_json: Option<String>,
     pub watch_var: Option<String>,
 }

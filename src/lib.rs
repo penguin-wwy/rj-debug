@@ -12,4 +12,6 @@ pub mod native;
 pub mod wrapper;
 pub mod config;
 pub mod load;
+pub mod method;
+pub mod writer;
 pub mod logger;

@@ -2,6 +2,7 @@ use super::native::jni_md::*;
 use super::native::jni::*;
 use super::native::jvmti::*;
 use super::config::*;
+use super::method::*;
 use super::wrapper::capabilities::JVMTI_Capabilities;
 use std::os::raw::{c_char, c_void};
 use std::ffi::CStr;
@@ -13,6 +14,7 @@ use simple_logging::{log_to, log_to_file};
 use log::LevelFilter::{Info, Debug};
 use core::borrow::Borrow;
 use std::mem::size_of;
+use crate::logger::assert_log;
 
 fn parse_config_file(path: *mut c_char) -> Option<Box<Configuration>> {
     let path_name = unsafe {
@@ -78,10 +80,28 @@ pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserv
 
     }
 
+    if (config.class_print) {
+        assert_log(
+            (**jvmti).SetEventNotificationMode.unwrap()(jvmti, JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, ptr::null_mut()),
+            Some("Set class prepare failed."),
+            None
+        );
+    }
+
     if (config.break_point_json.is_some()) {
         c.can_access_local_variables = true;
         c.can_generate_breakpoint_events = true;
         c.can_get_line_numbers = true;
+        assert_log(
+            (**jvmti).SetEventNotificationMode.unwrap()(jvmti, JVMTI_ENABLE, JVMTI_EVENT_BREAKPOINT, ptr::null_mut()),
+            Some("Set event breakpoint failed."),
+            None
+        );
+        assert_log(
+            (**jvmti).SetEventNotificationMode.unwrap()(jvmti, JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, ptr::null_mut()),
+            Some("Set class prepare failed."),
+            None
+        );
         GLOBAL_CONFIG.breakpoints = parse_bk_file(config.break_point_json.as_ref().unwrap().as_str());
     }
     if (config.watch_var.is_some()) {
@@ -98,8 +118,11 @@ pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserv
 }
 
 pub unsafe extern fn on_load(jvm: *mut JavaVM, jvmti: *mut jvmtiEnv) -> jint {
-
+    let config :&Configuration = GLOBAL_CONFIG.config.as_ref().unwrap().borrow();
     let mut call_back = jvmtiEventCallbacks::new();
+    if config.class_print {
+        call_back.ClassPrepare = Some(event_class_prepare);
+    }
     logger::assert_log((**jvmti).SetEventCallbacks.unwrap()(jvmti, &call_back, size_of::<jvmtiEventCallbacks>() as jint),
         Some("set event callbacks failed!"),
         Some("set event callbacks success!")
