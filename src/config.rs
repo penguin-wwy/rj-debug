@@ -6,6 +6,7 @@ use serde_json::{Result, Value};
 
 use super::logger;
 use core::borrow::Borrow;
+//use std::collections::HashMap;
 
 const NULL_STRING: &'static str = "<null>";
 
@@ -20,6 +21,25 @@ pub unsafe fn config() -> &'static Configuration {
         panic!("config not init!!!");
     }
     GLOBAL_CONFIG.config.as_ref().unwrap().borrow()
+}
+
+pub unsafe fn breakpoint_size() -> usize {
+    if GLOBAL_CONFIG.breakpoints.is_none() {
+        0
+    } else {
+        GLOBAL_CONFIG.breakpoints.as_ref().unwrap().len()
+    }
+}
+
+pub unsafe fn breakpoints(i: usize) -> Option<&'static BreakPoint> {
+    if GLOBAL_CONFIG.breakpoints.is_none() {
+        return None;
+    }
+    let vb : &Vec<BreakPoint>= GLOBAL_CONFIG.breakpoints.as_ref().unwrap().borrow();
+    if vb.len() < i {
+        return None;
+    }
+    vb.get(i)
 }
 
 pub trait JsonNew {
