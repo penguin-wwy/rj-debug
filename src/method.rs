@@ -10,17 +10,18 @@ use std::ffi::CStr;
 
 unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jklass: jclass, name: &str) -> Option<jmethodID> {
     let mut count: jint = 0;
-    let mut jmethods: *mut jmethodID = ptr::null_mut();
+    let mut _jmethods: *mut jmethodID = ptr::null_mut();
     assert_log(
-        (**jvmti).GetClassMethods.unwrap()(jvmti, jklass, &count as *mut jint, &jmethods as *mut *mut jmethodID),
+        (**jvmti).GetClassMethods.unwrap()(jvmti, jklass, &mut count as *mut jint, &mut _jmethods as *mut *mut jmethodID),
         Some("Get class methods failed..."),
         None
     );
 
-    for i in 0..count as u32 {
-        let method_name: *mut c_char = ptr::null_mut();
+    let jmethods: &[jmethodID] = std::slice::from_raw_parts(_jmethods as *const jmethodID, count as usize);
+    for i in 0..count as usize {
+        let mut method_name: *mut c_char = ptr::null_mut();
         assert_log(
-            (**jvmti).GetMethodName.unwrap()(jvmti, jmethods[i], &method_name as *mut *mut c_char, ptr::null_mut(), ptr::null_mut()),
+            (**jvmti).GetMethodName.unwrap()(jvmti, jmethods[i], &mut method_name as *mut *mut c_char, ptr::null_mut(), ptr::null_mut()),
             Some("Get method name failed..."),
             None
         );
@@ -31,9 +32,25 @@ unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jklass: jclass, name: &str) -> Opt
     return None;
 }
 
-pub fn set_break_point(jvmti: *mut jvmtiEnv, bk: &BreakPoint) {
-    let method: jmethodID = match get_method_id() { }
-    (**jvmti).GetLineNumberTable.unwrap()(jvmti, )
+unsafe fn set_break_point(jvmti: *mut jvmtiEnv, klass: jclass, bk: &BreakPoint) {
+    let method: jmethodID = match get_method_id(jvmti, klass, bk.get_method_name().unwrap().as_str()) {
+        Some(id) => id,
+        None => return,
+    };
+    let mut count: jint = 0;
+    let mut _entry: *mut jvmtiLineNumberEntry = ptr::null_mut();
+    assert_log(
+        (**jvmti).GetLineNumberTable.unwrap()(jvmti, method, &mut count as *mut jint, &mut _entry as *mut *mut jvmtiLineNumberEntry),
+        Some("Get line number table failed..."),
+        None
+    );
+    let entry: &[jvmtiLineNumberEntry] = std::slice::from_raw_parts(_entry, count as usize);
+    for i in 0..count as usize {
+        let entry_ref: &jvmtiLineNumberEntry = entry.get(i).unwrap();
+        if entry_ref.line_number == *(bk.get_line_number().unwrap()) as i32 {
+
+        }
+    }
 }
 
 pub unsafe extern "C" fn event_class_prepare(jvmti_env: *mut jvmtiEnv, jni_env: *mut JNIEnv,
@@ -57,7 +74,7 @@ pub unsafe extern "C" fn event_class_prepare(jvmti_env: *mut jvmtiEnv, jni_env: 
 
     for i in 0..breakpoint_size() {
         if class_name.eq(breakpoints(i).unwrap().get_class_name().unwrap()) {
-            set_break_point(jvmti_env, breakpoints(i).unwrap());
+            set_break_point(jvmti_env, klass, breakpoints(i).unwrap());
         }
     }
 }
