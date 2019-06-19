@@ -17,8 +17,6 @@ pub static mut GLOBAL_CONFIG: GConfig = GConfig {
     watch_var: None,
 };
 
-pub static mut CURR_PATH: Option<Path> = None;
-
 pub unsafe fn config() -> &'static Configuration {
     if GLOBAL_CONFIG.config.is_none() {
         panic!("config not init!!!");

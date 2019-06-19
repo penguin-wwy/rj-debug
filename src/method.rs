@@ -33,6 +33,7 @@ unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jklass: jclass, name: &str) -> Opt
 }
 
 unsafe fn set_break_point(jvmti: *mut jvmtiEnv, klass: jclass, bk: &BreakPoint) {
+    info("set_break_point");
     let method: jmethodID = match get_method_id(jvmti, klass, bk.get_method_name().unwrap().as_str()) {
         Some(id) => id,
         None => return,
@@ -85,6 +86,7 @@ pub unsafe extern "C" fn event_class_prepare(jvmti_env: *mut jvmtiEnv, jni_env: 
 
 pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut JNIEnv,
                                 thread: jthread, method: jmethodID, location: jlocation) {
+    info("event_break_point");
     let mut method_name: *mut c_char = ptr::null_mut();
     assert_log(
         (**jvmti).GetMethodName.unwrap()(jvmti, method, &mut method_name as *mut *mut c_char, ptr::null_mut(), ptr::null_mut()),

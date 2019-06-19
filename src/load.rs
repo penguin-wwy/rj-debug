@@ -16,7 +16,6 @@ use core::borrow::Borrow;
 use std::mem::size_of;
 use crate::logger::assert_log;
 use std::path::Path;
-use serde::export::fmt::rt::v1::Count::Param;
 
 fn parse_config_file(path: *mut c_char) -> Option<Box<Configuration>> {
     let path_name = unsafe {
@@ -83,27 +82,13 @@ pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserv
     }
 
     if config.class_print {
-        assert_log(
-            (**jvmti).SetEventNotificationMode.unwrap()(jvmti, JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, ptr::null_mut()),
-            Some("Set class prepare failed."),
-            None
-        );
+
     }
 
     if config.break_point_json.is_some() {
         c.can_access_local_variables = true;
         c.can_generate_breakpoint_events = true;
         c.can_get_line_numbers = true;
-        assert_log(
-            (**jvmti).SetEventNotificationMode.unwrap()(jvmti, JVMTI_ENABLE, JVMTI_EVENT_BREAKPOINT, ptr::null_mut()),
-            Some("Set event breakpoint failed."),
-            None
-        );
-        assert_log(
-            (**jvmti).SetEventNotificationMode.unwrap()(jvmti, JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, ptr::null_mut()),
-            Some("Set class prepare failed."),
-            None
-        );
         if !Path::new(config.break_point_json.as_ref().unwrap()).is_absolute() {
 //            GLOBAL_CONFIG.breakpoints = parse_bk_file(config.break_point_json.as_ref().unwrap().as_str());
         } else {
@@ -120,6 +105,27 @@ pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserv
         Some("add capabilities failed!"),
         Some("add capabilities...")
     );
+
+    if config.class_print {
+        assert_log(
+            (**jvmti).SetEventNotificationMode.unwrap()(jvmti, JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, ptr::null_mut()),
+            Some("Set class prepare event failed."),
+            None
+        );
+    }
+
+    if config.break_point_json.is_some() {
+        assert_log(
+            (**jvmti).SetEventNotificationMode.unwrap()(jvmti, JVMTI_ENABLE, JVMTI_EVENT_BREAKPOINT, ptr::null_mut()),
+            Some("Set event breakpoint event failed."),
+            None
+        );
+        assert_log(
+            (**jvmti).SetEventNotificationMode.unwrap()(jvmti, JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, ptr::null_mut()),
+            Some("Set class prepare failed."),
+            None
+        );
+    }
 
     return on_load(vm, jvmti);
 }
