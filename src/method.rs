@@ -25,7 +25,7 @@ unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jklass: jclass, name: &str) -> Opt
             Some("Get method name failed..."),
             None
         );
-        if (CStr::from_ptr(method_name).to_str().unwrap().eq(name)) {
+        if CStr::from_ptr(method_name).to_str().unwrap().eq(name) {
             return Some(jmethods[i]);
         }
     }
@@ -48,7 +48,11 @@ unsafe fn set_break_point(jvmti: *mut jvmtiEnv, klass: jclass, bk: &BreakPoint) 
     for i in 0..count as usize {
         let entry_ref: &jvmtiLineNumberEntry = entry.get(i).unwrap();
         if entry_ref.line_number == *(bk.get_line_number().unwrap()) as i32 {
-
+            assert_log(
+                (**jvmti).SetBreakpoint.unwrap()(jvmti, method, entry_ref.start_location),
+                Some("Set breakpoint failed."),
+                None,
+            );
         }
     }
 }
@@ -76,5 +80,40 @@ pub unsafe extern "C" fn event_class_prepare(jvmti_env: *mut jvmtiEnv, jni_env: 
         if class_name.eq(breakpoints(i).unwrap().get_class_name().unwrap()) {
             set_break_point(jvmti_env, klass, breakpoints(i).unwrap());
         }
+    }
+}
+
+pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut JNIEnv,
+                                thread: jthread, method: jmethodID, location: jlocation) {
+    let mut method_name: *mut c_char = ptr::null_mut();
+    assert_log(
+        (**jvmti).GetMethodName.unwrap()(jvmti, method, &mut method_name as *mut *mut c_char, ptr::null_mut(), ptr::null_mut()),
+        Some("Get method name failed..."),
+        None
+    );
+    let mut count: jint = 0;
+    let mut _entry: *mut jvmtiLineNumberEntry = ptr::null_mut();
+    assert_log(
+        (**jvmti).GetLineNumberTable.unwrap()(jvmti, method, &mut count as *mut jint, &mut _entry as *mut *mut jvmtiLineNumberEntry),
+        Some("Get line number table failed..."),
+        None
+    );
+    let entry: &[jvmtiLineNumberEntry] = std::slice::from_raw_parts(_entry, count as usize);
+    let mut hit: bool = false;
+    for i in 0..count as usize {
+        let entry_ref: &jvmtiLineNumberEntry = entry.get(i).unwrap();
+        if entry_ref.start_location == location {
+            writer(
+                format!("[Breakpoint] {} : {}",
+                        CStr::from_ptr(method_name).to_str().unwrap(),
+                        entry_ref.line_number
+                ).as_str()
+            );
+            hit = true;
+            break;
+        }
+    }
+    if hit == false {
+        expect("Error breakpoint...", 1);
     }
 }

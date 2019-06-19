@@ -6,6 +6,7 @@ use serde_json::{Result, Value};
 
 use super::logger;
 use core::borrow::Borrow;
+use std::path::Path;
 //use std::collections::HashMap;
 
 const NULL_STRING: &'static str = "<null>";
@@ -15,6 +16,8 @@ pub static mut GLOBAL_CONFIG: GConfig = GConfig {
     breakpoints: None,
     watch_var: None,
 };
+
+pub static mut CURR_PATH: Option<Path> = None;
 
 pub unsafe fn config() -> &'static Configuration {
     if GLOBAL_CONFIG.config.is_none() {

@@ -15,6 +15,8 @@ use log::LevelFilter::{Info, Debug};
 use core::borrow::Borrow;
 use std::mem::size_of;
 use crate::logger::assert_log;
+use std::path::Path;
+use serde::export::fmt::rt::v1::Count::Param;
 
 fn parse_config_file(path: *mut c_char) -> Option<Box<Configuration>> {
     let path_name = unsafe {
@@ -44,10 +46,10 @@ fn parse_bk_file(path: &str) -> Option<Box<Vec<BreakPoint>>> {
 
 #[no_mangle]
 pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserved: *mut c_void) -> jint {
-        GLOBAL_CONFIG.config = match parse_config_file(opts) {
-            Some(c) => Some(c),
-            None => return JNI_ERR,
-        };
+    GLOBAL_CONFIG.config = match parse_config_file(opts) {
+        Some(c) => Some(c),
+        None => return JNI_ERR,
+    };
     let config :&Configuration = GLOBAL_CONFIG.config.as_ref().unwrap().borrow();
 
     logger::info("parse config...");
@@ -63,24 +65,24 @@ pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserv
     logger::info("access JVMTI...");
 
     let mut log_level = Info;
-    if (config.verbose) {
+    if config.verbose {
         log_level = Debug;
     }
-    if (config.log_file.is_some()) {
+    if config.log_file.is_some() {
         log_to_file(config.log_file.as_ref().unwrap(), log_level);
     } else {
         log_to(std::io::stdout(), Info);
     }
 
     let mut c: JVMTI_Capabilities = JVMTI_Capabilities::new();
-    if (config.bytecode_dump) {
+    if config.bytecode_dump {
         c.can_get_bytecodes = true;
     }
-    if (config.heap_print) {
+    if config.heap_print {
 
     }
 
-    if (config.class_print) {
+    if config.class_print {
         assert_log(
             (**jvmti).SetEventNotificationMode.unwrap()(jvmti, JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, ptr::null_mut()),
             Some("Set class prepare failed."),
@@ -88,7 +90,7 @@ pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserv
         );
     }
 
-    if (config.break_point_json.is_some()) {
+    if config.break_point_json.is_some() {
         c.can_access_local_variables = true;
         c.can_generate_breakpoint_events = true;
         c.can_get_line_numbers = true;
@@ -102,9 +104,14 @@ pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserv
             Some("Set class prepare failed."),
             None
         );
-        GLOBAL_CONFIG.breakpoints = parse_bk_file(config.break_point_json.as_ref().unwrap().as_str());
+        if !Path::new(config.break_point_json.as_ref().unwrap()).is_absolute() {
+//            GLOBAL_CONFIG.breakpoints = parse_bk_file(config.break_point_json.as_ref().unwrap().as_str());
+        } else {
+            GLOBAL_CONFIG.breakpoints = parse_bk_file(config.break_point_json.as_ref().unwrap().as_str());
+        }
+
     }
-    if (config.watch_var.is_some()) {
+    if config.watch_var.is_some() {
         c.can_access_local_variables = true;
         c.can_generate_field_access_events = true;
     }
@@ -122,6 +129,10 @@ pub unsafe extern fn on_load(jvm: *mut JavaVM, jvmti: *mut jvmtiEnv) -> jint {
     let mut call_back = jvmtiEventCallbacks::new();
     if config.class_print {
         call_back.ClassPrepare = Some(event_class_prepare);
+    }
+    if config.break_point_json.is_some() {
+        call_back.ClassPrepare = Some(event_class_prepare);
+        call_back.Breakpoint = Some(event_break_point);
     }
     logger::assert_log((**jvmti).SetEventCallbacks.unwrap()(jvmti, &call_back, size_of::<jvmtiEventCallbacks>() as jint),
         Some("set event callbacks failed!"),
