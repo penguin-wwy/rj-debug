@@ -5,9 +5,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Result, Value};
 
 use super::logger;
+use super::native::jni::jmethodID;
 use core::borrow::Borrow;
 use std::path::Path;
-//use std::collections::HashMap;
+use std::collections::HashMap;
 
 const NULL_STRING: &'static str = "<null>";
 
@@ -15,6 +16,7 @@ pub static mut GLOBAL_CONFIG: GConfig = GConfig {
     config: None,
     breakpoints: None,
     watch_var: None,
+    breakpoint_info: None,
 };
 
 pub unsafe fn config() -> &'static Configuration {
@@ -54,6 +56,7 @@ pub struct BreakPoint {
     method_name: Option<String>,
     method_signature: Option<String>,
     line: Option<u32>,
+    var: Option<String>,
 }
 
 impl BreakPoint {
@@ -81,6 +84,10 @@ impl BreakPoint {
 
     pub fn get_line_number(&self) -> Option<&u32> {
         self.line.as_ref()
+    }
+
+    pub fn get_variable(&self) -> Option<&String> {
+        self.var.as_ref()
     }
 }
 
@@ -138,4 +145,23 @@ pub struct GConfig {
     pub config: Option<Box<Configuration>>,
     pub breakpoints: Option<Box<Vec<BreakPoint>>>,
     pub watch_var: Option<Box<Vec<WatchVar>>>,
+    pub breakpoint_info: Option<HashMap<jmethodID, *const BreakPoint>>
+}
+
+impl GConfig {
+    pub fn put_breakpoint_info(&mut self, method_id: jmethodID, bk_point: *const BreakPoint) {
+        if self.breakpoint_info.is_none() {
+            self.breakpoint_info = Some(HashMap::new());
+        }
+//        let v=  (self.breakpoint_info.as_ref().unwrap());
+        (self.breakpoint_info.as_mut().unwrap()).insert(method_id, bk_point);
+    }
+
+    pub fn get_breakpoint_info(&self, method_id: jmethodID) -> Option<&*const BreakPoint> {
+        if self.breakpoint_info.as_ref().unwrap().contains_key(&method_id) {
+            return self.breakpoint_info.as_ref().unwrap().get(&method_id);
+        } else {
+            return None;
+        }
+    }
 }

@@ -33,7 +33,7 @@ unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jklass: jclass, name: &str) -> Opt
     return None;
 }
 
-unsafe fn get_local_variable(jvmti: *mut jvmtiEnv, jmethod: jmethodID, name: &str, location: jlocation) -> Option<jint> {
+unsafe fn get_local_variable(jvmti: *mut jvmtiEnv, jmethod: jmethodID, name: &str, location: jlocation) -> Option<(jint, *mut c_char)> {
     let mut count: jint = 0;
     let mut _jLocalVarTableEntry: *mut jvmtiLocalVariableEntry = ptr::null_mut();
     assert_log(
@@ -48,7 +48,7 @@ unsafe fn get_local_variable(jvmti: *mut jvmtiEnv, jmethod: jmethodID, name: &st
         if location >= entry.start_location &&
             location < entry.start_location + entry.length as jlocation &&
             CStr::from_ptr(entry.name).to_str().unwrap() == name {
-            return Some(entry.slot);
+            return Some((entry.slot, entry.signature));
         }
     }
     return None;
@@ -60,6 +60,10 @@ unsafe fn set_break_point(jvmti: *mut jvmtiEnv, klass: jclass, bk: &BreakPoint) 
         Some(id) => id,
         None => return,
     };
+
+    // cache method id and breakpoint
+    GLOBAL_CONFIG.put_breakpoint_info(method, bk as *const BreakPoint);
+
     let mut count: jint = 0;
     let mut _entry: *mut jvmtiLineNumberEntry = ptr::null_mut();
     assert_log(
@@ -123,10 +127,13 @@ pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut J
         None
     );
     let entry: &[jvmtiLineNumberEntry] = std::slice::from_raw_parts(_entry, count as usize);
+
+    let bk: Option<&*const BreakPoint> = GLOBAL_CONFIG.get_breakpoint_info(method);
+
     let mut hit: bool = false;
     for i in 0..count as usize {
         let entry_ref: &jvmtiLineNumberEntry = entry.get(i).unwrap();
-        if entry_ref.start_location == location {
+        if entry_ref.start_location == location && bk.is_some() {
             writer(
                 format!("[Breakpoint] {} : {}",
                         CStr::from_ptr(method_name).to_str().unwrap(),
@@ -140,5 +147,28 @@ pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut J
     if hit == false {
         expect("Error breakpoint...", 1);
     }
-    
+
+    let var_name = (&**(bk.unwrap())).get_variable();
+    if var_name.is_some() {
+        let var_info = get_local_variable(jvmti, method, var_name.unwrap().as_str(), location);
+        if var_info.is_some() {
+            let (slot, signature) = var_info.unwrap();
+            writer(
+                format!("[Breakpoint] {} : {}",
+                        slot,
+                        CStr::from_ptr(signature).to_str().unwrap()
+                ).as_str()
+            );
+            match CStr::from_ptr(signature).to_str().unwrap() {
+                "I" => {
+                    let mut int_value: jint= 0;
+                    (**jvmti).GetLocalInt.unwrap()(jvmti, thread, 0, slot, &mut int_value as *mut jint);
+                    writer(format!("[Variable] {}", int_value).as_str());
+                },
+                _ => { // TODO
+                    writer("NULL");
+                }
+            };
+        }
+    }
 }
