@@ -7,6 +7,7 @@ use super::writer::*;
 use std::os::raw::c_char;
 use std::ptr;
 use std::ffi::CStr;
+use core::borrow::Borrow;
 
 unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jklass: jclass, name: &str) -> Option<jmethodID> {
     let mut count: jint = 0;
@@ -27,6 +28,27 @@ unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jklass: jclass, name: &str) -> Opt
         );
         if CStr::from_ptr(method_name).to_str().unwrap().eq(name) {
             return Some(jmethods[i]);
+        }
+    }
+    return None;
+}
+
+unsafe fn get_local_variable(jvmti: *mut jvmtiEnv, jmethod: jmethodID, name: &str, location: jlocation) -> Option<jint> {
+    let mut count: jint = 0;
+    let mut _jLocalVarTableEntry: *mut jvmtiLocalVariableEntry = ptr::null_mut();
+    assert_log(
+        (**jvmti).GetLocalVariableTable.unwrap()(jvmti, jmethod, &mut count as *mut jint, &mut _jLocalVarTableEntry as *mut *mut jvmtiLocalVariableEntry),
+        Some("Get local variable table failed."),
+        None
+    );
+    let jLocalVarTabelEntry: &[jvmtiLocalVariableEntry] = std::slice::from_raw_parts(
+        _jLocalVarTableEntry as *const jvmtiLocalVariableEntry, count as usize);
+    for i in 0..count as usize {
+        let entry = jLocalVarTabelEntry[i].borrow();
+        if location >= entry.start_location &&
+            location < entry.start_location + entry.length as jlocation &&
+            CStr::from_ptr(entry.name).to_str().unwrap() == name {
+            return Some(entry.slot);
         }
     }
     return None;
@@ -118,4 +140,5 @@ pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut J
     if hit == false {
         expect("Error breakpoint...", 1);
     }
+    
 }
