@@ -15,15 +15,19 @@ use log::LevelFilter::{Info, Debug};
 use core::borrow::Borrow;
 use std::mem::size_of;
 use crate::logger::assert_log;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::fs;
 
-fn parse_config_file(path: *mut c_char) -> Option<Box<Configuration>> {
+fn parse_config_path(path: *mut c_char) -> PathBuf {
+    assert!(!path.is_null());
     let path_name = unsafe {
-        assert!(!path.is_null());
-        CStr::from_ptr(path)
+        CStr::from_ptr(path).to_str().unwrap()
     };
-    let mut file = File::open(path_name.to_str().unwrap())
-        .expect("config file open failed!");
+    PathBuf::from(path_name)
+}
+
+fn parse_config_file(path: &str) -> Option<Box<Configuration>> {
+    let mut file = File::open(path).expect("config file open failed!");
     let mut content = String::new();
     if let Ok(_) = file.read_to_string(&mut content) {
         Some(Configuration::new_from_str(content.as_str()))
@@ -45,7 +49,10 @@ fn parse_bk_file(path: &str) -> Option<Box<Vec<BreakPoint>>> {
 
 #[no_mangle]
 pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserved: *mut c_void) -> jint {
-    GLOBAL_CONFIG.config = match parse_config_file(opts) {
+    let path_name = parse_config_path(opts);
+    GLOBAL_CONFIG.config = match parse_config_file(path_name
+                                                    .canonicalize()
+                                                    .expect("Can't find config file.").to_str().unwrap()) {
         Some(c) => Some(c),
         None => return JNI_ERR,
     };
@@ -89,10 +96,15 @@ pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserv
         c.can_access_local_variables = true;
         c.can_generate_breakpoint_events = true;
         c.can_get_line_numbers = true;
-        if !Path::new(config.break_point_json.as_ref().unwrap()).is_absolute() {
-//            GLOBAL_CONFIG.breakpoints = parse_bk_file(config.break_point_json.as_ref().unwrap().as_str());
+        let bk_path = Path::new(config.break_point_json.as_ref().unwrap());
+        if !bk_path.is_absolute() {
+            GLOBAL_CONFIG.breakpoints = parse_bk_file(
+                path_name.parent().unwrap().join(bk_path).to_str().unwrap()
+            );
         } else {
-            GLOBAL_CONFIG.breakpoints = parse_bk_file(config.break_point_json.as_ref().unwrap().as_str());
+            GLOBAL_CONFIG.breakpoints = parse_bk_file(
+                config.break_point_json.as_ref().unwrap().as_str()
+            );
         }
 
     }
