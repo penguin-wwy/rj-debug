@@ -1,3 +1,16 @@
+// javac -g empty.java
+// java -agentpath:/path/librj_debug.so=config.json empty
+/* Output:
+[Breakpoint] getFull : 4
+[Breakpoint] 1 : I
+[Variable] 11
+11
+[Breakpoint] getEmpty : 18
+[Breakpoint] 1 : I
+[Variable] 12
+12
+*/
+
 public class empty {
     public static int getFull(String s) {
         int len = s.length();

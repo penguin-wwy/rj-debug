@@ -3,14 +3,14 @@
     "class_name": "empty",
     "method_name": "getFull",
     "method_signature": null,
-    "line": 4,
+    "line": 17,
     "var": "len"
   },
   {
     "class_name": "empty",
     "method_name": "getEmpty",
     "method_signature": null,
-    "line": 18,
+    "line": 31,
     "var": "len"
   }
 ]
