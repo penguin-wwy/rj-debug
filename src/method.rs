@@ -99,10 +99,6 @@ pub unsafe extern "C" fn event_class_prepare(jvmti_env: *mut jvmtiEnv, jni_env: 
         writer(format!("[class prepare] {}", class_name.as_str()).as_str());
     }
 
-    if config().bytecode_dump {
-
-    }
-
     for i in 0..breakpoint_size() {
         if class_name.eq(format!("L{};", breakpoints(i).unwrap().get_class_name().unwrap()).as_str()) {
             set_break_point(jvmti_env, klass, breakpoints(i).unwrap());

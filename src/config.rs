@@ -124,7 +124,7 @@ pub struct WatchVar {
 pub struct Configuration {
     pub verbose: bool,
     pub log_file: Option<String>,
-    pub bytecode_dump: bool,
+    pub bytecode_dump: Vec<String>,
     pub heap_print: bool,
     pub class_print: bool,
     pub break_point_json: Option<String>,
@@ -153,7 +153,6 @@ impl GConfig {
         if self.breakpoint_info.is_none() {
             self.breakpoint_info = Some(HashMap::new());
         }
-//        let v=  (self.breakpoint_info.as_ref().unwrap());
         (self.breakpoint_info.as_mut().unwrap()).insert(method_id, bk_point);
     }
 

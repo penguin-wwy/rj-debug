@@ -1,9 +1,0 @@
-{
-  "verbose": false,
-  "log_file": null,
-  "bytecode_dump": false,
-  "heap_print": false,
-  "class_print": true,
-  "break_point_json": null,
-  "watch_var": null
-}

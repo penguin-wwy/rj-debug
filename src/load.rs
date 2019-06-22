@@ -75,13 +75,16 @@ pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserv
         log_level = Debug;
     }
     if config.log_file.is_some() {
-        log_to_file(config.log_file.as_ref().unwrap(), log_level);
+        log_to_file(Path::new(
+                    config.log_file.as_ref().unwrap()).canonicalize().unwrap().to_str().unwrap(),
+                    log_level
+        );
     } else {
         log_to(std::io::stdout(), Info);
     }
 
     let mut c: JVMTI_Capabilities = JVMTI_Capabilities::new();
-    if config.bytecode_dump {
+    if !config.bytecode_dump.is_empty() {
         c.can_get_bytecodes = true;
     }
     if config.heap_print {

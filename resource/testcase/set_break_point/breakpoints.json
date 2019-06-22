@@ -1,0 +1,16 @@
+[
+  {
+    "class_name": "empty",
+    "method_name": "getFull",
+    "method_signature": null,
+    "line": 4,
+    "var": "len"
+  },
+  {
+    "class_name": "empty",
+    "method_name": "getEmpty",
+    "method_signature": null,
+    "line": 18,
+    "var": "len"
+  }
+]
