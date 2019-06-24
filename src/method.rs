@@ -4,6 +4,7 @@ use super::native::jni_md::*;
 use super::logger::*;
 use super::config::*;
 use super::writer::*;
+use super::messages;
 use std::os::raw::c_char;
 use std::ptr;
 use std::ffi::CStr;
@@ -21,12 +22,14 @@ unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jklass: jclass, name: &str) -> Opt
     let jmethods: &[jmethodID] = std::slice::from_raw_parts(_jmethods as *const jmethodID, count as usize);
     for i in 0..count as usize {
         let mut method_name: *mut c_char = ptr::null_mut();
+        let mut method_signature: *mut c_char = ptr::null_mut();
         assert_log(
-            (**jvmti).GetMethodName.unwrap()(jvmti, jmethods[i], &mut method_name as *mut *mut c_char, ptr::null_mut(), ptr::null_mut()),
-            Some("Get method name failed..."),
+            (**jvmti).GetMethodName.unwrap()(jvmti, jmethods[i], &mut method_name as *mut *mut c_char, &mut method_signature as *mut *mut c_char, ptr::null_mut()),
+            Some(messages::GET_METHOD_NAME_ERROR),
             None
         );
         if CStr::from_ptr(method_name).to_str().unwrap().eq(name) {
+            info(format!("method_signature : {}", CStr::from_ptr(method_signature).to_str().unwrap()).as_str());
             return Some(jmethods[i]);
         }
     }
@@ -112,7 +115,7 @@ pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut J
     let mut method_name: *mut c_char = ptr::null_mut();
     assert_log(
         (**jvmti).GetMethodName.unwrap()(jvmti, method, &mut method_name as *mut *mut c_char, ptr::null_mut(), ptr::null_mut()),
-        Some("Get method name failed..."),
+        Some(messages::GET_METHOD_NAME_ERROR),
         None
     );
     let mut count: jint = 0;

@@ -15,3 +15,4 @@ pub mod load;
 pub mod method;
 pub mod writer;
 pub mod logger;
+pub mod messages;

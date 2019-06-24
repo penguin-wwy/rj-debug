@@ -1,14 +1,15 @@
 use std::fmt;
 use std::mem;
 use std::sync::Mutex;
-use serde::{Deserialize, Serialize};
-use serde_json::{Result, Value};
-
-use super::logger;
-use super::native::jni::jmethodID;
 use core::borrow::Borrow;
 use std::path::Path;
 use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
+use serde_json::{Result, Value};
+
+use super::messages::*;
+use super::logger;
+use super::native::jni::{jmethodID, JNI_OK, JNI_ERR};
 
 const NULL_STRING: &'static str = "<null>";
 
@@ -17,6 +18,7 @@ pub static mut GLOBAL_CONFIG: GConfig = GConfig {
     breakpoints: None,
     watch_var: None,
     breakpoint_info: None,
+    bytecode_methods: None,
 };
 
 pub unsafe fn config() -> &'static Configuration {
@@ -145,7 +147,8 @@ pub struct GConfig {
     pub config: Option<Box<Configuration>>,
     pub breakpoints: Option<Box<Vec<BreakPoint>>>,
     pub watch_var: Option<Box<Vec<WatchVar>>>,
-    pub breakpoint_info: Option<HashMap<jmethodID, *const BreakPoint>>
+    pub breakpoint_info: Option<HashMap<jmethodID, *const BreakPoint>>,
+    pub bytecode_methods: Option<HashMap<String, Vec<String>>>
 }
 
 impl GConfig {
@@ -161,6 +164,45 @@ impl GConfig {
             return self.breakpoint_info.as_ref().unwrap().get(&method_id);
         } else {
             return None;
+        }
+    }
+
+    pub fn init_methods_map(&mut self) {
+        if self.config.as_ref().unwrap().bytecode_dump.len() == 0 {
+            return;
+        } else {
+            if self.bytecode_methods.is_none() {
+                self.bytecode_methods = Some(HashMap::new());
+            }
+            let method_size = self.config.as_ref().unwrap().bytecode_dump.len();
+            for i in 0..method_size {
+                let full_name = self.config.as_ref().unwrap().bytecode_dump.get(i).unwrap();
+                let names: Vec<&str> = full_name.split(":").collect();
+                logger::assert_log(
+                    match names.len() == 2 {
+                    true => JNI_OK,
+                    false => JNI_ERR
+                },Some(message_with_path(METHOD_SIGNATURE_ERROR, "bytecode_dump vector").as_str()),None);
+                let last_dot = names[0].rfind('.')
+                    .expect(message_with_path(METHOD_SIGNATURE_ERROR, "bytecode_dump vector").as_str());
+                logger::assert_log(
+                    match last_dot < names[0].len() - 1 {
+                        true => JNI_OK,
+                        false => JNI_ERR
+                    },
+                    Some(message_with_path(METHOD_SIGNATURE_ERROR, "bytecode_dump vector").as_str()),
+                    None
+                );
+                let class_name = String::from(&names[0][..last_dot]);
+                let method_name = &names[0][last_dot+1..];
+                if !self.bytecode_methods.as_ref().unwrap().contains_key(&class_name) {
+                    self.bytecode_methods.as_mut().unwrap()
+                        .insert(class_name.clone(), Vec::new());
+                }
+                self.bytecode_methods.as_mut().unwrap()
+                    .get_mut(&class_name).unwrap()
+                    .push(format!("{}:{}", method_name, names[1]));
+            }
         }
     }
 }
