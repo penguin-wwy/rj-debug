@@ -48,6 +48,30 @@ fn parse_bk_file(path: &str) -> Option<Box<Vec<BreakPoint>>> {
     }
 }
 
+fn create_capabilities(config: &Configuration) -> JVMTI_Capabilities {
+    let mut c: JVMTI_Capabilities = JVMTI_Capabilities::new();
+    if !config.bytecode_dump.is_empty() {
+        c.can_get_bytecodes = true;
+    }
+    if config.heap_print {
+
+    }
+
+    if config.class_print {
+
+    }
+    if config.break_point_json.is_some() {
+        c.can_access_local_variables = true;
+        c.can_generate_breakpoint_events = true;
+        c.can_get_line_numbers = true;
+    }
+    if config.watch_var.is_some() {
+        c.can_access_local_variables = true;
+        c.can_generate_field_access_events = true;
+    }
+    return c;
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserved: *mut c_void) -> jint {
     let path_name = parse_config_path(opts);
@@ -84,22 +108,7 @@ pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserv
         log_to(std::io::stdout(), Info);
     }
 
-    let mut c: JVMTI_Capabilities = JVMTI_Capabilities::new();
-    if !config.bytecode_dump.is_empty() {
-        c.can_get_bytecodes = true;
-    }
-    if config.heap_print {
-
-    }
-
-    if config.class_print {
-
-    }
-
     if config.break_point_json.is_some() {
-        c.can_access_local_variables = true;
-        c.can_generate_breakpoint_events = true;
-        c.can_get_line_numbers = true;
         let bk_path = Path::new(config.break_point_json.as_ref().unwrap());
         if !bk_path.is_absolute() {
             GLOBAL_CONFIG.breakpoints = parse_bk_file(
@@ -112,10 +121,7 @@ pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserv
         }
 
     }
-    if config.watch_var.is_some() {
-        c.can_access_local_variables = true;
-        c.can_generate_field_access_events = true;
-    }
+    let c: JVMTI_Capabilities = create_capabilities(config);
     logger::assert_log(
         (**jvmti).AddCapabilities.unwrap()(jvmti, &c.to_native()),
         Some("add capabilities failed!"),
