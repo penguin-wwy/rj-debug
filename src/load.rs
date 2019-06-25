@@ -108,6 +108,9 @@ pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserv
         log_to(std::io::stdout(), Info);
     }
 
+    // init bytecode_dump vector to cache map
+    GLOBAL_CONFIG.init_methods_map();
+    // read breakpoints from json file
     if config.break_point_json.is_some() {
         let bk_path = Path::new(config.break_point_json.as_ref().unwrap());
         if !bk_path.is_absolute() {

@@ -53,3 +53,30 @@ fn parse_break_points() {
     assert_eq!(*bv[0].get_line_number().unwrap(), 2 as u32);
     assert_eq!(bv[1].get_method_full_name().unwrap(), "<null><null>");
 }
+
+#[test]
+fn init_methods_map() {
+    let mut gc = GConfig {
+        config: Some(Box::new(Configuration {
+            verbose: false,
+            log_file: None,
+            bytecode_dump: vec![
+                String::from("empty.main:([Ljava/lang/String;)V"),
+                String::from("empty.getEmpty:(Ljava/lang/String;)I")
+            ],
+            heap_print: false,
+            class_print: false,
+            break_point_json: None,
+            watch_var: None,
+        })),
+        breakpoints: None,
+        watch_var: None,
+        breakpoint_info: None,
+        bytecode_methods: None,
+    };
+    gc.init_methods_map();
+    let v1 = gc.bytecode_methods.as_ref().unwrap().get("empty").unwrap().get(0).unwrap();
+    let v2 = gc.bytecode_methods.as_ref().unwrap().get("empty").unwrap().get(1).unwrap();
+    assert_eq!(v1, "main:([Ljava/lang/String;)V");
+    assert_eq!(v2, "getEmpty:(Ljava/lang/String;)I");
+}
