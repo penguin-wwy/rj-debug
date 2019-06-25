@@ -95,11 +95,13 @@ impl BreakPoint {
 
 impl JsonNew for BreakPoint {
     fn new_from_str(data: &str) -> Box<Self> {
-        Box::new(serde_json::from_str(data).expect("Break point parse json error!"))
+        Box::new(serde_json::from_str(data)
+            .expect(message_by_file_parse(JSON_FILE_PARSE_ERROR, data).as_str()))
     }
 
     fn vec_from_str(data: &str) -> Box<Vec<Self>> {
-        Box::new(serde_json::from_str(data).expect("Break point array parse json error!"))
+        Box::new(serde_json::from_str(data)
+            .expect(message_by_file_parse(JSON_FILE_PARSE_ERROR, data).as_str()))
     }
 }
 
@@ -135,11 +137,13 @@ pub struct Configuration {
 
 impl JsonNew for Configuration {
     fn new_from_str(data: &str) -> Box<Self> {
-        Box::new(serde_json::from_str(data).expect("Config file parse json error!"))
+        Box::new(serde_json::from_str(data)
+            .expect(message_by_file_parse(JSON_FILE_PARSE_ERROR, data).as_str()))
     }
 
     fn vec_from_str(data: &str) -> Box<Vec<Self>> {
-        Box::new(serde_json::from_str(data).expect("Config files parse json error!"))
+        Box::new(serde_json::from_str(data)
+            .expect(message_by_file_parse(JSON_FILE_PARSE_ERROR, data).as_str()))
     }
 }
 

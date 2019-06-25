@@ -10,6 +10,7 @@ use std::fs::File;
 use std::io::Read;
 use std::ptr;
 use super::logger;
+use super::messages;
 use simple_logging::{log_to, log_to_file};
 use log::LevelFilter::{Info, Debug};
 use core::borrow::Borrow;
@@ -124,7 +125,7 @@ pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserv
     if config.class_print {
         assert_log(
             (**jvmti).SetEventNotificationMode.unwrap()(jvmti, JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, ptr::null_mut()),
-            Some("Set class prepare event failed."),
+            Some(messages::error_with_set_event("class prepare").as_str()),
             None
         );
     }
@@ -132,12 +133,12 @@ pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserv
     if config.break_point_json.is_some() {
         assert_log(
             (**jvmti).SetEventNotificationMode.unwrap()(jvmti, JVMTI_ENABLE, JVMTI_EVENT_BREAKPOINT, ptr::null_mut()),
-            Some("Set event breakpoint event failed."),
+            Some(messages::error_with_set_event("event breakpoint").as_str()),
             None
         );
         assert_log(
             (**jvmti).SetEventNotificationMode.unwrap()(jvmti, JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, ptr::null_mut()),
-            Some("Set class prepare failed."),
+            Some(messages::error_with_set_event("class prepare").as_str()),
             None
         );
     }

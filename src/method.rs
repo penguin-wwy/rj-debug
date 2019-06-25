@@ -9,6 +9,7 @@ use std::os::raw::c_char;
 use std::ptr;
 use std::ffi::CStr;
 use core::borrow::Borrow;
+use crate::messages::{GET_LOCAL_VARIABLE_ERROR, GET_LINE_TABLE_ERROR, SET_BREAKPOINT_ERROR, GET_CLASS_SIGNATURE_ERROR, UNKNOWN_BREAKPOINT};
 
 unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jklass: jclass, name: &str) -> Option<jmethodID> {
     let mut count: jint = 0;
@@ -41,7 +42,7 @@ unsafe fn get_local_variable(jvmti: *mut jvmtiEnv, jmethod: jmethodID, name: &st
     let mut _jLocalVarTableEntry: *mut jvmtiLocalVariableEntry = ptr::null_mut();
     assert_log(
         (**jvmti).GetLocalVariableTable.unwrap()(jvmti, jmethod, &mut count as *mut jint, &mut _jLocalVarTableEntry as *mut *mut jvmtiLocalVariableEntry),
-        Some("Get local variable table failed."),
+        Some(GET_LOCAL_VARIABLE_ERROR),
         None
     );
     let jLocalVarTabelEntry: &[jvmtiLocalVariableEntry] = std::slice::from_raw_parts(
@@ -58,7 +59,6 @@ unsafe fn get_local_variable(jvmti: *mut jvmtiEnv, jmethod: jmethodID, name: &st
 }
 
 unsafe fn set_break_point(jvmti: *mut jvmtiEnv, klass: jclass, bk: &BreakPoint) {
-    info("set_break_point");
     let method: jmethodID = match get_method_id(jvmti, klass, bk.get_method_name().unwrap().as_str()) {
         Some(id) => id,
         None => return,
@@ -71,7 +71,7 @@ unsafe fn set_break_point(jvmti: *mut jvmtiEnv, klass: jclass, bk: &BreakPoint) 
     let mut _entry: *mut jvmtiLineNumberEntry = ptr::null_mut();
     assert_log(
         (**jvmti).GetLineNumberTable.unwrap()(jvmti, method, &mut count as *mut jint, &mut _entry as *mut *mut jvmtiLineNumberEntry),
-        Some("Get line number table failed..."),
+        Some(GET_LINE_TABLE_ERROR),
         None
     );
     let entry: &[jvmtiLineNumberEntry] = std::slice::from_raw_parts(_entry, count as usize);
@@ -80,7 +80,7 @@ unsafe fn set_break_point(jvmti: *mut jvmtiEnv, klass: jclass, bk: &BreakPoint) 
         if entry_ref.line_number == *(bk.get_line_number().unwrap()) as i32 {
             assert_log(
                 (**jvmti).SetBreakpoint.unwrap()(jvmti, method, entry_ref.start_location),
-                Some("Set breakpoint failed."),
+                Some(SET_BREAKPOINT_ERROR),
                 None,
             );
         }
@@ -93,7 +93,7 @@ pub unsafe extern "C" fn event_class_prepare(jvmti_env: *mut jvmtiEnv, jni_env: 
 
     assert_log(
         (**jvmti_env).GetClassSignature.unwrap()(jvmti_env, klass, &mut class_name_native as *mut *mut c_char, ptr::null_mut()),
-        Some("GetClassSignature Error..."),
+        Some(GET_CLASS_SIGNATURE_ERROR),
         None
     );
     assert!(!class_name_native.is_null());
@@ -111,7 +111,6 @@ pub unsafe extern "C" fn event_class_prepare(jvmti_env: *mut jvmtiEnv, jni_env: 
 
 pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut JNIEnv,
                                 thread: jthread, method: jmethodID, location: jlocation) {
-    info("event_break_point");
     let mut method_name: *mut c_char = ptr::null_mut();
     assert_log(
         (**jvmti).GetMethodName.unwrap()(jvmti, method, &mut method_name as *mut *mut c_char, ptr::null_mut(), ptr::null_mut()),
@@ -122,7 +121,7 @@ pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut J
     let mut _entry: *mut jvmtiLineNumberEntry = ptr::null_mut();
     assert_log(
         (**jvmti).GetLineNumberTable.unwrap()(jvmti, method, &mut count as *mut jint, &mut _entry as *mut *mut jvmtiLineNumberEntry),
-        Some("Get line number table failed..."),
+        Some(GET_LINE_TABLE_ERROR),
         None
     );
     let entry: &[jvmtiLineNumberEntry] = std::slice::from_raw_parts(_entry, count as usize);
@@ -144,7 +143,7 @@ pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut J
         }
     }
     if hit == false {
-        expect("Error breakpoint...", 1);
+        expect(UNKNOWN_BREAKPOINT, 1);
     }
 
     let var_name = (&**(bk.unwrap())).get_variable();
