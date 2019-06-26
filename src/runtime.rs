@@ -11,7 +11,7 @@ struct Klasses<'a> {
     name_map: RefCell<HashMap<jclass, &'a String>>,
 }
 
-impl Klasses {
+impl<'a> Klasses<'a> {
     fn new() -> Self {
         Klasses {
             id_map: RefCell::new(HashMap::new()),
@@ -19,8 +19,11 @@ impl Klasses {
         }
     }
 
-    fn get_class_id(&self, name: &String) -> Option<&jclass> {
-        self.id_map.borrow().get(name)
+    fn get_class_id(&self, name: &String) -> Option<jclass> {
+        match self.id_map.borrow().get(name) {
+            Some(c) => Some(*c),
+            None => None,
+        }
     }
 
     fn get_class_name(&self, id: &jclass) -> Option<&String> {
@@ -36,7 +39,7 @@ struct Methods<'a> {
     name_map: RefCell<HashMap<jmethodID, &'a String>>,
 }
 
-impl Methods {
+impl<'a> Methods<'a> {
     fn new() -> Self {
         Methods {
             id_map: RefCell::new(HashMap::new()),
@@ -44,8 +47,11 @@ impl Methods {
         }
     }
 
-    fn get_method_id(&self, name: &String) -> Option<&jmethodID> {
-        self.id_map.borrow().get(name)
+    fn get_method_id(&self, name: &String) -> Option<jmethodID> {
+        match self.id_map.borrow().get(name) {
+            Some(i) => Some(*i),
+            None => None,
+        }
     }
 
     fn get_method_name(&self, id: &jmethodID) -> Option<&String> {
@@ -62,18 +68,18 @@ pub struct RTInfo<'a> {
     methods: Methods<'a>,
 }
 
-impl RTInfo {
-    pub unsafe fn rt_info() -> &Self {
+impl<'a> RTInfo<'a> {
+    pub unsafe fn rt_info() -> &'static Self {
         if RTINFO == ptr::null_mut() {
-           RTINFO = &RTInfo {
+           *RTINFO = RTInfo {
                klasses: Klasses::new(),
                methods: Methods::new(),
-           } as *mut RTInfo;
+           };
         }
         &(*RTINFO)
     }
 
-    fn get_class_id(&self, name: &String) -> Option<&jclass> {
+    fn get_class_id(&self, name: &String) -> Option<jclass> {
         self.klasses.get_class_id(name)
     }
 
@@ -81,7 +87,7 @@ impl RTInfo {
         self.klasses.get_class_name(id)
     }
 
-    pub fn get_method_id(&self, name: &String) -> Option<&jmethodID> {
+    pub fn get_method_id(&self, name: &String) -> Option<jmethodID> {
         self.methods.get_method_id(name)
     }
 
