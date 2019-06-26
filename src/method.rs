@@ -5,13 +5,18 @@ use super::logger::*;
 use super::config::*;
 use super::writer::*;
 use super::messages;
+use super::runtime::RTInfo;
 use std::os::raw::c_char;
 use std::ptr;
 use std::ffi::CStr;
 use core::borrow::Borrow;
 use crate::messages::{GET_LOCAL_VARIABLE_ERROR, GET_LINE_TABLE_ERROR, SET_BREAKPOINT_ERROR, GET_CLASS_SIGNATURE_ERROR, UNKNOWN_BREAKPOINT};
 
-unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jklass: jclass, name: &str) -> Option<jmethodID> {
+unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jklass: jclass, name: &str, signature: &str) -> Option<jmethodID> {
+    let func_sig = format!("{}.{}:{}", RTInfo::rt_instance().get_class_name(&jklass).unwrap(), name, signature);
+    if let Some(result) = RTInfo::rt_instance().get_method_id(&func_sig) {
+        return Some(result);
+    }
     let mut count: jint = 0;
     let mut _jmethods: *mut jmethodID = ptr::null_mut();
     assert_log(
@@ -29,8 +34,11 @@ unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jklass: jclass, name: &str) -> Opt
             Some(messages::GET_METHOD_NAME_ERROR),
             None
         );
-        if CStr::from_ptr(method_name).to_str().unwrap().eq(name) {
-            info(format!("method_signature : {}", CStr::from_ptr(method_signature).to_str().unwrap()).as_str());
+        let c_name = CStr::from_ptr(method_name).to_str().unwrap();
+        let c_signature = CStr::from_ptr(method_signature).to_str().unwrap();
+        if c_name.eq(name) && c_signature.eq(signature) {
+            info(format!("method_signature : {}", c_signature).as_str());
+            RTInfo::rt_instance().insert_method_id(jmethods[i], func_sig.as_str());
             return Some(jmethods[i]);
         }
     }
@@ -59,7 +67,10 @@ unsafe fn get_local_variable(jvmti: *mut jvmtiEnv, jmethod: jmethodID, name: &st
 }
 
 unsafe fn set_break_point(jvmti: *mut jvmtiEnv, klass: jclass, bk: &BreakPoint) {
-    let method: jmethodID = match get_method_id(jvmti, klass, bk.get_method_name().unwrap().as_str()) {
+    let method: jmethodID = match get_method_id(jvmti,
+                                                klass,
+                                                bk.get_method_name().unwrap().as_str(),
+                                                bk.get_method_signature().unwrap().as_str()) {
         Some(id) => id,
         None => return,
     };
@@ -103,7 +114,10 @@ pub unsafe extern "C" fn event_class_prepare(jvmti_env: *mut jvmtiEnv, jni_env: 
     }
 
     for i in 0..breakpoint_size() {
-        if class_name.eq(format!("L{};", breakpoints(i).unwrap().get_class_name().unwrap()).as_str()) {
+        let name = breakpoints(i).unwrap().get_class_name().unwrap();
+        if class_name.eq(format!("L{};", name.replace(".", "/")).as_str()) {
+            // inner class is not match
+            RTInfo::rt_instance().insert_class_id(klass, name.as_str());
             set_break_point(jvmti_env, klass, breakpoints(i).unwrap());
         }
     }

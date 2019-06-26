@@ -89,11 +89,11 @@ impl RTInfo {
         &(*RTINFO)
     }
 
-    fn get_class_id(&self, name: &String) -> Option<jclass> {
+    pub fn get_class_id(&self, name: &String) -> Option<jclass> {
         self.klasses.get_class_id(name)
     }
 
-    fn get_class_name(&self, id: &jclass) -> Option<String> {
+    pub fn get_class_name(&self, id: &jclass) -> Option<String> {
         self.klasses.get_class_name(id)
     }
 
@@ -109,7 +109,7 @@ impl RTInfo {
         self.klasses.insert_class_id(id, name);
     }
 
-    pub fn add_method_id(&self, id: jmethodID, name: &str) {
+    pub fn insert_method_id(&self, id: jmethodID, name: &str) {
         self.methods.insert_method_id(id, name);
     }
 }
