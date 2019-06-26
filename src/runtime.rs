@@ -6,12 +6,12 @@ use std::cell::RefCell;
 
 const RTINFO: *mut RTInfo = ptr::null_mut();
 
-struct Klasses<'a> {
-    id_map: RefCell<HashMap<&'a String, jclass>>,
-    name_map: RefCell<HashMap<jclass, &'a String>>,
+struct Klasses {
+    id_map: RefCell<HashMap<String, jclass>>,
+    name_map: RefCell<HashMap<jclass, String>>,
 }
 
-impl<'a> Klasses<'a> {
+impl Klasses {
     fn new() -> Self {
         Klasses {
             id_map: RefCell::new(HashMap::new()),
@@ -26,20 +26,20 @@ impl<'a> Klasses<'a> {
         }
     }
 
-    fn get_class_name(&self, id: &jclass) -> Option<&String> {
+    fn get_class_name(&self, id: &jclass) -> Option<String> {
         match self.name_map.borrow().get(id) {
-            Some(s) => Some(*s),
-            None => None,
+            Some(s) => Some(String::from(s.as_str())),
+            None => None
         }
     }
 }
 
-struct Methods<'a> {
-    id_map: RefCell<HashMap<&'a String, jmethodID>>,
-    name_map: RefCell<HashMap<jmethodID, &'a String>>,
+struct Methods {
+    id_map: RefCell<HashMap<String, jmethodID>>,
+    name_map: RefCell<HashMap<jmethodID, String>>,
 }
 
-impl<'a> Methods<'a> {
+impl Methods {
     fn new() -> Self {
         Methods {
             id_map: RefCell::new(HashMap::new()),
@@ -54,21 +54,21 @@ impl<'a> Methods<'a> {
         }
     }
 
-    fn get_method_name(&self, id: &jmethodID) -> Option<&String> {
+    fn get_method_name(&self, id: &jmethodID) -> Option<String> {
         match self.name_map.borrow().get(id) {
-            Some(s) => Some(*s),
+            Some(s) => Some(String::from(s.as_str())),
             None => None
         }
     }
 }
 
 // mark runtime info, example method id map
-pub struct RTInfo<'a> {
-    klasses: Klasses<'a>,
-    methods: Methods<'a>,
+pub struct RTInfo {
+    klasses: Klasses,
+    methods: Methods,
 }
 
-impl<'a> RTInfo<'a> {
+impl RTInfo {
     pub unsafe fn rt_info() -> &'static Self {
         if RTINFO == ptr::null_mut() {
            *RTINFO = RTInfo {
@@ -83,7 +83,7 @@ impl<'a> RTInfo<'a> {
         self.klasses.get_class_id(name)
     }
 
-    fn get_class_name(&self, id: &jclass) -> Option<&String> {
+    fn get_class_name(&self, id: &jclass) -> Option<String> {
         self.klasses.get_class_name(id)
     }
 
@@ -91,7 +91,7 @@ impl<'a> RTInfo<'a> {
         self.methods.get_method_id(name)
     }
 
-    pub fn get_method_name(&self, id: &jmethodID) -> Option<&String> {
+    pub fn get_method_name(&self, id: &jmethodID) -> Option<String> {
         self.methods.get_method_name(id)
     }
 }
