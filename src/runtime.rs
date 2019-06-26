@@ -32,6 +32,11 @@ impl Klasses {
             None => None
         }
     }
+
+    fn insert_class_id(&self, id: jclass, name: &str) {
+        self.id_map.borrow_mut().insert(String::from(name), id);
+        self.name_map.borrow_mut().insert(id, String::from(name));
+    }
 }
 
 struct Methods {
@@ -60,6 +65,11 @@ impl Methods {
             None => None
         }
     }
+
+    fn insert_method_id(&self, id: jmethodID, name: &str) {
+        self.id_map.borrow_mut().insert(String::from(name), id);
+        self.name_map.borrow_mut().insert(id, String::from(name));
+    }
 }
 
 // mark runtime info, example method id map
@@ -69,7 +79,7 @@ pub struct RTInfo {
 }
 
 impl RTInfo {
-    pub unsafe fn rt_info() -> &'static Self {
+    pub unsafe fn rt_instance() -> &'static Self {
         if RTINFO == ptr::null_mut() {
            *RTINFO = RTInfo {
                klasses: Klasses::new(),
@@ -93,5 +103,13 @@ impl RTInfo {
 
     pub fn get_method_name(&self, id: &jmethodID) -> Option<String> {
         self.methods.get_method_name(id)
+    }
+
+    pub fn insert_class_id(&self, id: jclass, name: &str) {
+        self.klasses.insert_class_id(id, name);
+    }
+
+    pub fn add_method_id(&self, id: jmethodID, name: &str) {
+        self.methods.insert_method_id(id, name);
     }
 }
