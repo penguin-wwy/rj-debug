@@ -5,6 +5,7 @@ pub const GET_CLASS_SIGNATURE_ERROR: &'static str = "Get class signature failed"
 pub const UNKNOWN_BREAKPOINT: &'static str = "Unknown breakpoint";
 pub const SET_BREAKPOINT_ERROR: &'static str = "Set breakpoint failed";
 pub const JSON_FILE_PARSE_ERROR: &'static str = "File parse json error";
+pub const BYTECODE_DUMP_ERROR: &'static str = "Bytecode dump failed";
 
 pub const METHOD_SIGNATURE_ERROR: &'static str = "method signature format error";
 
@@ -18,4 +19,8 @@ pub fn message_by_file_parse(message: &str, file: &str) -> String {
 
 pub fn message_with_path(message: &str, path: &str) -> String {
     format!("{} [address: {}]", message, path)
+}
+
+pub fn message_with_method(message: &str, name: &str) -> String {
+    format!("{} [method: {}]", message, name)
 }

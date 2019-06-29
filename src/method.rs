@@ -6,11 +6,11 @@ use super::config::*;
 use super::writer::*;
 use super::messages;
 use super::runtime::RTInfo;
-use std::os::raw::c_char;
+use std::os::raw::{c_char, c_uchar};
 use std::ptr;
 use std::ffi::CStr;
 use core::borrow::Borrow;
-use crate::messages::{GET_LOCAL_VARIABLE_ERROR, GET_LINE_TABLE_ERROR, SET_BREAKPOINT_ERROR, GET_CLASS_SIGNATURE_ERROR, UNKNOWN_BREAKPOINT};
+use crate::messages::{GET_LOCAL_VARIABLE_ERROR, GET_LINE_TABLE_ERROR, SET_BREAKPOINT_ERROR, GET_CLASS_SIGNATURE_ERROR, UNKNOWN_BREAKPOINT, message_with_method, BYTECODE_DUMP_ERROR};
 
 unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jklass: jclass, name: &str, signature: &str) -> Option<jmethodID> {
     let func_sig = format!("{}.{}:{}", RTInfo::rt_instance().get_class_name(&jklass).unwrap(), name, signature);
@@ -37,7 +37,6 @@ unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jklass: jclass, name: &str, signat
         let c_name = CStr::from_ptr(method_name).to_str().unwrap();
         let c_signature = CStr::from_ptr(method_signature).to_str().unwrap();
         if c_name.eq(name) && c_signature.eq(signature) {
-            info(format!("method_signature : {}", c_signature).as_str());
             RTInfo::rt_instance().insert_method_id(jmethods[i], func_sig.as_str());
             return Some(jmethods[i]);
         }
@@ -112,6 +111,33 @@ pub unsafe extern "C" fn event_class_prepare(jvmti_env: *mut jvmtiEnv, jni_env: 
     if config().class_print {
         writer(format!("[class prepare] {}", class_name.as_str()).as_str());
     }
+
+    for (name, methods) in GLOBAL_CONFIG.bytecode_methods.as_ref().unwrap() {
+        if class_name.eq(format!("L{};", name.replace(".", "/")).as_str()) {
+            RTInfo::rt_instance().insert_class_id(klass, name.as_str());
+            for method_name in methods {
+                let name_signature: Vec<&str> = method_name.split(":").collect();
+                match get_method_id(jvmti_env, klass, name_signature[0], name_signature[1]) {
+                    None => break,
+                    Some(id) => {
+                        let mut _bytecodes: *mut c_uchar = ptr::null_mut();
+                        let mut size: jint = 0;
+                        assert_log(
+                            (**jvmti_env).GetBytecodes.unwrap()(jvmti_env, id, &mut size as *mut jint, &mut _bytecodes as *mut *mut c_uchar),
+                            Some(message_with_method(
+                                BYTECODE_DUMP_ERROR,
+                                RTInfo::rt_instance().get_method_name(&id).unwrap().as_str()
+                            ).as_str()),
+                            None
+                        );
+                        let bytecodes: &[u8] = std::slice::from_raw_parts(_bytecodes, size as usize);
+                        writer(format!("[method: <{}>] {:?}", RTInfo::rt_instance().get_method_name(&id).unwrap().as_str(), bytecodes).as_str());
+                    }
+                }
+            }
+        }
+    }
+
 
     for i in 0..breakpoint_size() {
         let name = breakpoints(i).unwrap().get_class_name().unwrap();

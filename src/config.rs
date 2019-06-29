@@ -172,12 +172,12 @@ impl GConfig {
     }
 
     pub fn init_methods_map(&mut self) {
+        if self.bytecode_methods.is_none() {
+            self.bytecode_methods = Some(HashMap::new());
+        }
         if self.config.as_ref().unwrap().bytecode_dump.len() == 0 {
             return;
         } else {
-            if self.bytecode_methods.is_none() {
-                self.bytecode_methods = Some(HashMap::new());
-            }
             let method_size = self.config.as_ref().unwrap().bytecode_dump.len();
             for i in 0..method_size {
                 let full_name = self.config.as_ref().unwrap().bytecode_dump.get(i).unwrap();

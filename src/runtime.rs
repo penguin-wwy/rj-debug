@@ -2,9 +2,10 @@ use std::collections::HashMap;
 use std::ptr;
 
 use super::native::jni::{jmethodID, jclass};
+use super::logger::*;
 use std::cell::RefCell;
 
-const RTINFO: *mut RTInfo = ptr::null_mut();
+static mut RTINFO: *mut RTInfo = ptr::null_mut();
 
 struct Klasses {
     id_map: RefCell<HashMap<String, jclass>>,
@@ -33,9 +34,9 @@ impl Klasses {
         }
     }
 
-    fn insert_class_id(&self, id: jclass, name: &str) {
-        self.id_map.borrow_mut().insert(String::from(name), id);
-        self.name_map.borrow_mut().insert(id, String::from(name));
+    fn insert_class_id(&mut self, id: jclass, name: &str) {
+        self.id_map.get_mut().insert(String::from(name), id);
+        self.name_map.get_mut().insert(id, String::from(name));
     }
 }
 
@@ -66,9 +67,9 @@ impl Methods {
         }
     }
 
-    fn insert_method_id(&self, id: jmethodID, name: &str) {
-        self.id_map.borrow_mut().insert(String::from(name), id);
-        self.name_map.borrow_mut().insert(id, String::from(name));
+    fn insert_method_id(&mut self, id: jmethodID, name: &str) {
+        self.id_map.get_mut().insert(String::from(name), id);
+        self.name_map.get_mut().insert(id, String::from(name));
     }
 }
 
@@ -79,14 +80,15 @@ pub struct RTInfo {
 }
 
 impl RTInfo {
-    pub unsafe fn rt_instance() -> &'static Self {
+    pub unsafe fn rt_instance() -> &'static mut Self {
         if RTINFO == ptr::null_mut() {
-           *RTINFO = RTInfo {
+           let mut r = Box::new(RTInfo {
                klasses: Klasses::new(),
                methods: Methods::new(),
-           };
+            });
+            RTINFO = &mut *r as *mut RTInfo;
         }
-        &(*RTINFO)
+        &mut (*RTINFO)
     }
 
     pub fn get_class_id(&self, name: &String) -> Option<jclass> {
@@ -105,11 +107,11 @@ impl RTInfo {
         self.methods.get_method_name(id)
     }
 
-    pub fn insert_class_id(&self, id: jclass, name: &str) {
+    pub fn insert_class_id(&mut self, id: jclass, name: &str) {
         self.klasses.insert_class_id(id, name);
     }
 
-    pub fn insert_method_id(&self, id: jmethodID, name: &str) {
+    pub fn insert_method_id(&mut self, id: jmethodID, name: &str) {
         self.methods.insert_method_id(id, name);
     }
 }
