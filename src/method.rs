@@ -131,7 +131,9 @@ pub unsafe extern "C" fn event_class_prepare(jvmti_env: *mut jvmtiEnv, jni_env: 
                             None
                         );
                         let bytecodes: &[u8] = std::slice::from_raw_parts(_bytecodes, size as usize);
-                        writer(format!("[method: <{}>] {:?}", RTInfo::rt_instance().get_method_name(&id).unwrap().as_str(), bytecodes).as_str());
+                        let bytecodes_data: Vec<String> = bytecodes.iter().map(|b| format!("{:02X}", b)).collect();
+                        writer(format!("[method: <{}>]:", RTInfo::rt_instance().get_method_name(&id).unwrap().as_str()).as_str());
+                        write_str_vec(&bytecodes_data, 5);
                     }
                 }
             }
