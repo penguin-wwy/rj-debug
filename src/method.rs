@@ -112,6 +112,7 @@ pub unsafe extern "C" fn event_class_prepare(jvmti_env: *mut jvmtiEnv, jni_env: 
         writer(format!("[class prepare] {}", class_name.as_str()).as_str());
     }
 
+//    println!("{} : {:?}", class_name, GLOBAL_CONFIG.bytecode_methods.as_ref());
     for (name, methods) in GLOBAL_CONFIG.bytecode_methods.as_ref().unwrap() {
         if class_name.eq(format!("L{};", name.replace(".", "/")).as_str()) {
             RTInfo::rt_instance().insert_class_id(klass, name.as_str());

@@ -60,6 +60,9 @@ fn create_capabilities(config: &Configuration) -> JVMTI_Capabilities {
     if config.class_print {
 
     }
+    if !config.bytecode_dump.is_empty() {
+        c.can_get_bytecodes = true;
+    }
     if config.break_point_json.is_some() {
         c.can_access_local_variables = true;
         c.can_generate_breakpoint_events = true;
@@ -139,6 +142,14 @@ pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserv
         );
     }
 
+    if !config.bytecode_dump.is_empty() {
+        assert_log(
+            (**jvmti).SetEventNotificationMode.unwrap()(jvmti, JVMTI_ENABLE, JVMTI_EVENT_CLASS_PREPARE, ptr::null_mut()),
+            Some(messages::error_with_set_event("class prepare").as_str()),
+            None
+        );
+    }
+
     if config.break_point_json.is_some() {
         assert_log(
             (**jvmti).SetEventNotificationMode.unwrap()(jvmti, JVMTI_ENABLE, JVMTI_EVENT_BREAKPOINT, ptr::null_mut()),
@@ -159,6 +170,9 @@ pub unsafe extern fn on_load(jvm: *mut JavaVM, jvmti: *mut jvmtiEnv) -> jint {
     let config :&Configuration = GLOBAL_CONFIG.config.as_ref().unwrap().borrow();
     let mut call_back = jvmtiEventCallbacks::new();
     if config.class_print {
+        call_back.ClassPrepare = Some(event_class_prepare);
+    }
+    if !config.bytecode_dump.is_empty() {
         call_back.ClassPrepare = Some(event_class_prepare);
     }
     if config.break_point_json.is_some() {
