@@ -10,7 +10,7 @@ use std::os::raw::{c_char, c_uchar};
 use std::ptr;
 use std::ffi::CStr;
 use core::borrow::Borrow;
-use crate::messages::{GET_LOCAL_VARIABLE_ERROR, GET_LINE_TABLE_ERROR, SET_BREAKPOINT_ERROR, GET_CLASS_SIGNATURE_ERROR, UNKNOWN_BREAKPOINT, message_with_method, BYTECODE_DUMP_ERROR};
+use crate::messages::*;
 
 unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jklass: jclass, name: &str, signature: &str) -> Option<jmethodID> {
     let func_sig = format!("{}.{}:{}", RTInfo::rt_instance().get_class_name(&jklass).unwrap(), name, signature);
@@ -201,10 +201,53 @@ pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut J
                 ).as_str()
             );
             match CStr::from_ptr(signature).to_str().unwrap() {
+                "Z" => { // boolean
+
+                },
+                "B" => { // byte
+
+                },
+                "C" => { // char
+
+                },
+                "S" => { // short
+
+                },
                 "I" => {
-                    let mut int_value: jint= 0;
-                    (**jvmti).GetLocalInt.unwrap()(jvmti, thread, 0, slot, &mut int_value as *mut jint);
+                    let mut int_value: jint = 0;
+                    assert_log(
+                        (**jvmti).GetLocalInt.unwrap()(jvmti, thread, 0, slot, &mut int_value as *mut jint),
+                        Some(GET_LOCAL_INT_ERROR),
+                        None
+                    );
                     writer(format!("[Variable] {}", int_value).as_str());
+                },
+                "J" => { // long
+                    let mut long_value: jlong = 0;
+                    assert_log(
+                        (**jvmti).GetLocalLong.unwrap()(jvmti, thread, 0, slot, &mut long_value as *mut jlong),
+                        Some(GET_LOCAL_LONG_ERROR),
+                        None
+                    );
+                    writer(format!("[Variable] {}", long_value).as_str());
+                },
+                "F" => { // float
+                    let mut float_value: jfloat = 0.0;
+                    assert_log(
+                        (**jvmti).GetLocalFloat.unwrap()(jvmti, thread, 0, slot, &mut float_value as *mut jfloat),
+                        Some(GET_LOCAL_FLOAT_ERROR),
+                        None
+                    );
+                    writer(format!("[Variable] {}", float_value).as_str());
+                },
+                "D" => { // double
+                    let mut double_value: jdouble = 0.0;
+                    assert_log(
+                        (**jvmti).GetLocalDouble.unwrap()(jvmti, thread, 0, slot, &mut double_value as *mut jdouble),
+                        Some(GET_LOCAL_DOUBLE_ERROR),
+                        None
+                    );
+                    writer(format!("[Variable] {}", double_value).as_str());
                 },
                 _ => { // TODO
                     writer("NULL");
