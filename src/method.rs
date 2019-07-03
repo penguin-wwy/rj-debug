@@ -8,7 +8,7 @@ use super::messages;
 use super::runtime::RTInfo;
 use std::os::raw::{c_char, c_uchar};
 use std::ptr;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use core::borrow::Borrow;
 use crate::messages::*;
 
@@ -250,6 +250,23 @@ pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut J
                     writer(format!("[Variable] {}", double_value).as_str());
                 },
                 _ => { // TODO
+                    let mut object_value: jobject = ptr::null_mut();
+                    assert_log(
+                        (**jvmti).GetLocalObject.unwrap()(jvmti, thread, 0, slot, &mut object_value as *mut jobject),
+                        Some(GET_LOCAL_OBJECT_ERROR),
+                        None
+                    );
+                    let clazz: jclass = (**jni_env).GetObjectClass.unwrap()(jni_env, object_value);
+                    let to_string_name = CString::new("toString")
+                        .expect(error_create_c_string("toString").as_str());
+                    let to_string_signature = CString::new("()Ljava/lang/String")
+                        .expect(error_create_c_string("()Ljava/lang/String").as_str());
+                    let methid_id: jmethodID = (**jni_env).GetMethodID.unwrap()(jni_env, clazz, to_string_name.into_raw(), to_string_signature.into_raw());
+                    let string_object: jstring = (**jni_env).CallObjectMethod.unwrap()(jni_env, object_value, methid_id) as jstring;
+                    let raw_string = (**jni_env).GetStringUTFChars.unwrap()(jni_env, string_object, ptr::null_mut() as *mut jboolean);
+                    assert!(!raw_string.is_null());
+                    let string_ref = CStr::from_ptr(raw_string).to_str().unwrap();
+                    writer(format!("[Variable] {}", string_ref).as_str());
                     writer("NULL");
                 }
             };

@@ -29,3 +29,7 @@ pub fn message_with_path(message: &str, path: &str) -> String {
 pub fn message_with_method(message: &str, name: &str) -> String {
     format!("{} [method: {}]", message, name)
 }
+
+pub fn error_create_c_string(data: &str) -> String {
+    format!("Create CString failed [{}]", data)
+}
