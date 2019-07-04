@@ -13,19 +13,51 @@ use core::borrow::Borrow;
 use crate::messages::*;
 
 unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jni_env: *mut JNIEnv, jklass: jclass, name: &str, signature: &str) -> Option<jmethodID> {
+    println!("{} {}", name, signature);
     let func_sig = format!("{}.{}:{}", RTInfo::rt_instance().get_class_name(&jklass).unwrap(), name, signature);
+    println!("{}", func_sig);
+
     if let Some(result) = RTInfo::rt_instance().get_method_id(&func_sig) {
         return Some(result);
     }
 
-    let name_char = CString::new(name).expect(error_create_c_string(name).as_str());
+
+    let mut count: jint = 0;
+    let mut _jmethods: *mut jmethodID = ptr::null_mut();
+    assert_log(
+        (**jvmti).GetClassMethods.unwrap()(jvmti, jklass, &mut count as *mut jint, &mut _jmethods as *mut *mut jmethodID),
+        Some("Get class methods failed..."),
+        None,
+    );
+
+    let jmethods: &[jmethodID] = std::slice::from_raw_parts(_jmethods as *const jmethodID, count as usize);
+    for i in 0..count as usize {
+        let mut method_name: *mut c_char = ptr::null_mut();
+        let mut method_signature: *mut c_char = ptr::null_mut();
+        assert_log(
+            (**jvmti).GetMethodName.unwrap()(jvmti, jmethods[i], &mut method_name as *mut *mut c_char, &mut method_signature as *mut *mut c_char, ptr::null_mut()),
+            Some(messages::GET_METHOD_NAME_ERROR),
+            None,
+        );
+        let c_name = CStr::from_ptr(method_name).to_str().unwrap();
+        let c_signature = CStr::from_ptr(method_signature).to_str().unwrap();
+        println!("method -- {}:{}", c_name, c_signature);
+        if c_name.eq(name) && c_signature.eq(signature) {
+            RTInfo::rt_instance().insert_method_id(jmethods[i], func_sig.as_str());
+            return Some(jmethods[i]);
+        }
+    }
+    return None;
+
+    // next code can't work normal
+    /*let name_char = CString::new(name).expect(error_create_c_string(name).as_str());
     let signature_char = CString::new(signature).expect(error_create_c_string(signature).as_str());
     let method_id = (**jni_env).GetMethodID.unwrap()(jni_env, jklass, name_char.into_raw(), signature_char.into_raw());
     if method_id.is_null() {
         return None;
     }
     RTInfo::rt_instance().insert_method_id(method_id, func_sig.as_str());
-    return Some(method_id);
+    return Some(method_id);*/
 }
 
 unsafe fn get_local_variable(jvmti: *mut jvmtiEnv, jmethod: jmethodID, name: &str, location: jlocation) -> Option<(jint, *mut c_char)> {
@@ -97,9 +129,9 @@ pub unsafe extern "C" fn event_class_prepare(jvmti_env: *mut jvmtiEnv, jni_env: 
         writer(format!("[class prepare] {}", class_name.as_str()).as_str());
     }
 
-//    println!("{} : {:?}", class_name, GLOBAL_CONFIG.bytecode_methods.as_ref());
     for (name, methods) in GLOBAL_CONFIG.bytecode_methods.as_ref().unwrap() {
         if class_name.eq(format!("L{};", name.replace(".", "/")).as_str()) {
+            println!("{}", class_name);
             RTInfo::rt_instance().insert_class_id(klass, name.as_str());
             for method_name in methods {
                 let name_signature: Vec<&str> = method_name.split(":").collect();
@@ -234,7 +266,7 @@ pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut J
                     );
                     writer(format!("[Variable] {}", double_value).as_str());
                 },
-                _ => { // TODO
+                _ => {
                     let mut object_value: jobject = ptr::null_mut();
                     assert_log(
                         (**jvmti).GetLocalObject.unwrap()(jvmti, thread, 0, slot, &mut object_value as *mut jobject),
@@ -244,15 +276,14 @@ pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut J
                     let clazz: jclass = (**jni_env).GetObjectClass.unwrap()(jni_env, object_value);
                     let to_string_name = CString::new("toString")
                         .expect(error_create_c_string("toString").as_str());
-                    let to_string_signature = CString::new("()Ljava/lang/String")
-                        .expect(error_create_c_string("()Ljava/lang/String").as_str());
+                    let to_string_signature = CString::new("()Ljava/lang/String;")
+                        .expect(error_create_c_string("()Ljava/lang/String;").as_str());
                     let methid_id: jmethodID = (**jni_env).GetMethodID.unwrap()(jni_env, clazz, to_string_name.into_raw(), to_string_signature.into_raw());
                     let string_object: jstring = (**jni_env).CallObjectMethod.unwrap()(jni_env, object_value, methid_id) as jstring;
                     let raw_string = (**jni_env).GetStringUTFChars.unwrap()(jni_env, string_object, ptr::null_mut() as *mut jboolean);
                     assert!(!raw_string.is_null());
                     let string_ref = CStr::from_ptr(raw_string).to_str().unwrap();
                     writer(format!("[Variable] {}", string_ref).as_str());
-                    writer("NULL");
                 }
             };
         }
