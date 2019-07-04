@@ -12,36 +12,20 @@ use std::ffi::{CStr, CString};
 use core::borrow::Borrow;
 use crate::messages::*;
 
-unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jklass: jclass, name: &str, signature: &str) -> Option<jmethodID> {
+unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jni_env: *mut JNIEnv, jklass: jclass, name: &str, signature: &str) -> Option<jmethodID> {
     let func_sig = format!("{}.{}:{}", RTInfo::rt_instance().get_class_name(&jklass).unwrap(), name, signature);
     if let Some(result) = RTInfo::rt_instance().get_method_id(&func_sig) {
         return Some(result);
     }
-    let mut count: jint = 0;
-    let mut _jmethods: *mut jmethodID = ptr::null_mut();
-    assert_log(
-        (**jvmti).GetClassMethods.unwrap()(jvmti, jklass, &mut count as *mut jint, &mut _jmethods as *mut *mut jmethodID),
-        Some("Get class methods failed..."),
-        None
-    );
 
-    let jmethods: &[jmethodID] = std::slice::from_raw_parts(_jmethods as *const jmethodID, count as usize);
-    for i in 0..count as usize {
-        let mut method_name: *mut c_char = ptr::null_mut();
-        let mut method_signature: *mut c_char = ptr::null_mut();
-        assert_log(
-            (**jvmti).GetMethodName.unwrap()(jvmti, jmethods[i], &mut method_name as *mut *mut c_char, &mut method_signature as *mut *mut c_char, ptr::null_mut()),
-            Some(messages::GET_METHOD_NAME_ERROR),
-            None
-        );
-        let c_name = CStr::from_ptr(method_name).to_str().unwrap();
-        let c_signature = CStr::from_ptr(method_signature).to_str().unwrap();
-        if c_name.eq(name) && c_signature.eq(signature) {
-            RTInfo::rt_instance().insert_method_id(jmethods[i], func_sig.as_str());
-            return Some(jmethods[i]);
-        }
+    let name_char = CString::new(name).expect(error_create_c_string(name).as_str());
+    let signature_char = CString::new(signature).expect(error_create_c_string(signature).as_str());
+    let method_id = (**jni_env).GetMethodID.unwrap()(jni_env, jklass, name_char.into_raw(), signature_char.into_raw());
+    if method_id.is_null() {
+        return None;
     }
-    return None;
+    RTInfo::rt_instance().insert_method_id(method_id, func_sig.as_str());
+    return Some(method_id);
 }
 
 unsafe fn get_local_variable(jvmti: *mut jvmtiEnv, jmethod: jmethodID, name: &str, location: jlocation) -> Option<(jint, *mut c_char)> {
@@ -65,8 +49,9 @@ unsafe fn get_local_variable(jvmti: *mut jvmtiEnv, jmethod: jmethodID, name: &st
     return None;
 }
 
-unsafe fn set_break_point(jvmti: *mut jvmtiEnv, klass: jclass, bk: &BreakPoint) {
+unsafe fn set_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut JNIEnv, klass: jclass, bk: &BreakPoint) {
     let method: jmethodID = match get_method_id(jvmti,
+                                                jni_env,
                                                 klass,
                                                 bk.get_method_name().unwrap().as_str(),
                                                 bk.get_method_signature().unwrap().as_str()) {
@@ -118,7 +103,7 @@ pub unsafe extern "C" fn event_class_prepare(jvmti_env: *mut jvmtiEnv, jni_env: 
             RTInfo::rt_instance().insert_class_id(klass, name.as_str());
             for method_name in methods {
                 let name_signature: Vec<&str> = method_name.split(":").collect();
-                match get_method_id(jvmti_env, klass, name_signature[0], name_signature[1]) {
+                match get_method_id(jvmti_env, jni_env, klass, name_signature[0], name_signature[1]) {
                     None => break,
                     Some(id) => {
                         let mut _bytecodes: *mut c_uchar = ptr::null_mut();
@@ -147,7 +132,7 @@ pub unsafe extern "C" fn event_class_prepare(jvmti_env: *mut jvmtiEnv, jni_env: 
         if class_name.eq(format!("L{};", name.replace(".", "/")).as_str()) {
             // inner class is not match
             RTInfo::rt_instance().insert_class_id(klass, name.as_str());
-            set_break_point(jvmti_env, klass, breakpoints(i).unwrap());
+            set_break_point(jvmti_env, jni_env, klass, breakpoints(i).unwrap());
         }
     }
 }
