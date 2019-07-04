@@ -1,0 +1,9 @@
+[
+  {
+    "class_name": "MainObject",
+    "method_name": "run",
+    "method_signature": "(LMainObject;)V",
+    "line": 17,
+    "var": "obj"
+  }
+]

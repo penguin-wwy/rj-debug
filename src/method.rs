@@ -13,10 +13,7 @@ use core::borrow::Borrow;
 use crate::messages::*;
 
 unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jni_env: *mut JNIEnv, jklass: jclass, name: &str, signature: &str) -> Option<jmethodID> {
-    println!("{} {}", name, signature);
     let func_sig = format!("{}.{}:{}", RTInfo::rt_instance().get_class_name(&jklass).unwrap(), name, signature);
-    println!("{}", func_sig);
-
     if let Some(result) = RTInfo::rt_instance().get_method_id(&func_sig) {
         return Some(result);
     }
@@ -41,7 +38,6 @@ unsafe fn get_method_id(jvmti: *mut jvmtiEnv, jni_env: *mut JNIEnv, jklass: jcla
         );
         let c_name = CStr::from_ptr(method_name).to_str().unwrap();
         let c_signature = CStr::from_ptr(method_signature).to_str().unwrap();
-        println!("method -- {}:{}", c_name, c_signature);
         if c_name.eq(name) && c_signature.eq(signature) {
             RTInfo::rt_instance().insert_method_id(jmethods[i], func_sig.as_str());
             return Some(jmethods[i]);
@@ -237,7 +233,7 @@ pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut J
                         Some(GET_LOCAL_INT_ERROR),
                         None
                     );
-                    writer(format!("[Variable] {}", int_value).as_str());
+                    writer(format!("[Variable] {} : {}", var_name.unwrap().as_str(), int_value).as_str());
                 },
                 "J" => { // long
                     let mut long_value: jlong = 0;
@@ -246,7 +242,7 @@ pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut J
                         Some(GET_LOCAL_LONG_ERROR),
                         None
                     );
-                    writer(format!("[Variable] {}", long_value).as_str());
+                    writer(format!("[Variable] {} : {}", var_name.unwrap().as_str(), long_value).as_str());
                 },
                 "F" => { // float
                     let mut float_value: jfloat = 0.0;
@@ -255,7 +251,7 @@ pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut J
                         Some(GET_LOCAL_FLOAT_ERROR),
                         None
                     );
-                    writer(format!("[Variable] {}", float_value).as_str());
+                    writer(format!("[Variable] {} : {}", var_name.unwrap().as_str(), float_value).as_str());
                 },
                 "D" => { // double
                     let mut double_value: jdouble = 0.0;
@@ -264,7 +260,7 @@ pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut J
                         Some(GET_LOCAL_DOUBLE_ERROR),
                         None
                     );
-                    writer(format!("[Variable] {}", double_value).as_str());
+                    writer(format!("[Variable] {} : {}", var_name.unwrap().as_str(), double_value).as_str());
                 },
                 _ => {
                     let mut object_value: jobject = ptr::null_mut();
@@ -283,7 +279,7 @@ pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut J
                     let raw_string = (**jni_env).GetStringUTFChars.unwrap()(jni_env, string_object, ptr::null_mut() as *mut jboolean);
                     assert!(!raw_string.is_null());
                     let string_ref = CStr::from_ptr(raw_string).to_str().unwrap();
-                    writer(format!("[Variable] {}", string_ref).as_str());
+                    writer(format!("[Variable] {} : {}", var_name.unwrap().as_str(), string_ref).as_str());
                 }
             };
         }
