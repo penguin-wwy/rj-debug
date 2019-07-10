@@ -1,4 +1,28 @@
 use std::process::exit;
+use std::sync::Mutex;
+use std::io::Write;
+
+struct SimpleWriter {
+    inner: Mutex<Option<SimpleWriterInner>>
+}
+
+impl SimpleWriter {
+    fn renew<T: Write + Send + 'static>(&self, sink: T) {
+        *self.inner.lock().unwrap() = Some(SimpleWriterInner{
+            sink: Box::new(sink),
+        });
+    }
+}
+
+struct SimpleWriterInner {
+    sink: Box<Write + Send>,
+}
+
+impl SimpleWriterInner {
+    fn write(&mut self, message: &str) {
+        let _ = write!(self.sink, "{}", message);
+    }
+}
 
 pub fn writer(message: &str) {
     // TODO : output message to file or stdout
