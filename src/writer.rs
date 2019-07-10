@@ -1,6 +1,13 @@
 use std::process::exit;
 use std::sync::Mutex;
 use std::io::Write;
+use std::path::Path;
+
+lazy_static! {
+    static ref RESULT_WRITER: SimpleWriter = SimpleWriter {
+        inner: Mutex::new(None),
+    };
+}
 
 struct SimpleWriter {
     inner: Mutex<Option<SimpleWriterInner>>
@@ -22,6 +29,16 @@ impl SimpleWriterInner {
     fn write(&mut self, message: &str) {
         let _ = write!(self.sink, "{}", message);
     }
+}
+
+pub fn result_to_file<T: AsRef<Path>> (path: T) -> std::io::Result<()>{
+    let result_file = std::fs::File::create(path)?;
+    result_to(result_file);
+    Ok(())
+}
+
+pub fn result_to<T: Write + Send + 'static>(sink: T) {
+    RESULT_WRITER.renew(sink);
 }
 
 pub fn writer(message: &str) {
