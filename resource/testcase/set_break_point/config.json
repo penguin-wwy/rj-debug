@@ -1,6 +1,7 @@
 {
   "verbose": false,
   "log_file": null,
+  "output_file": null,
   "bytecode_dump": [],
   "heap_print": false,
   "class_print": false,

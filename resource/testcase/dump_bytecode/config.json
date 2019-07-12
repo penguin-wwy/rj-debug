@@ -1,6 +1,7 @@
 {
   "verbose": false,
   "log_file": null,
+  "output_file": null,
   "bytecode_dump": ["com.test.Dump.getLength:(Ljava/lang/String;)I"],
   "heap_print": false,
   "class_print": false,
