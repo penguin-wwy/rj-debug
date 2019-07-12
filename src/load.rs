@@ -11,6 +11,7 @@ use std::io::Read;
 use std::ptr;
 use super::logger;
 use super::messages;
+use super::writer::{result_to, result_to_file};
 use simple_logging::{log_to, log_to_file};
 use log::LevelFilter::{Info, Debug};
 use core::borrow::Borrow;
@@ -109,6 +110,20 @@ pub unsafe extern "C" fn Agent_OnLoad(vm: *mut JavaVM, opts: *mut c_char, reserv
         );
     } else {
         log_to(std::io::stdout(), Info);
+    }
+
+    if config.output_file.is_some() {
+        let output_file = Path::new(config.output_file.as_ref().unwrap());
+        if !output_file.is_absolute() {
+            let abs_path = path_name.canonicalize().unwrap();
+            let parent = abs_path.parent().unwrap();
+            let output_abs = parent.join(output_file);
+            result_to_file(output_abs.as_path());
+        } else {
+            result_to_file(output_file);
+        }
+    } else {
+        result_to(std::io::stdout())
     }
 
     // init bytecode_dump vector to cache map

@@ -128,6 +128,7 @@ pub struct WatchVar {
 pub struct Configuration {
     pub verbose: bool,
     pub log_file: Option<String>,
+    pub output_file: Option<String>,
     pub bytecode_dump: Vec<String>,
     pub heap_print: bool,
     pub class_print: bool,

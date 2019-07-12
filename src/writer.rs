@@ -10,7 +10,7 @@ lazy_static! {
 }
 
 struct SimpleWriter {
-    inner: Mutex<Option<SimpleWriterInner>>
+    pub inner: Mutex<Option<SimpleWriterInner>>
 }
 
 impl SimpleWriter {
@@ -18,6 +18,10 @@ impl SimpleWriter {
         *self.inner.lock().unwrap() = Some(SimpleWriterInner{
             sink: Box::new(sink),
         });
+    }
+
+    pub fn write(&self, message: &str) {
+        self.inner.lock().unwrap().as_mut().unwrap().write(message)
     }
 }
 
@@ -27,7 +31,7 @@ struct SimpleWriterInner {
 
 impl SimpleWriterInner {
     fn write(&mut self, message: &str) {
-        let _ = write!(self.sink, "{}", message);
+        let _ = write!(self.sink, "{}\n", message);
     }
 }
 
@@ -43,7 +47,10 @@ pub fn result_to<T: Write + Send + 'static>(sink: T) {
 
 pub fn writer(message: &str) {
     // TODO : output message to file or stdout
-    println!("{}", message);
+//    println!("{}", message);
+//    write!(std::io::stdout(), "{}", message);
+    RESULT_WRITER.write(message)
+
 }
 
 pub fn expect(message: &str, code: i32) {
