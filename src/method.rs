@@ -215,16 +215,40 @@ pub unsafe extern "C" fn event_break_point(jvmti: *mut jvmtiEnv, jni_env: *mut J
             );
             match CStr::from_ptr(signature).to_str().unwrap() {
                 "Z" => { // boolean
-
+                    let mut boolean_value: jint = 0;
+                    assert_log(
+                        (**jvmti).GetLocalInt.unwrap()(jvmti, thread, 0, slot, &mut boolean_value as *mut jint),
+                        Some(GET_LOCAL_BOOLEAN_ERROR),
+                        None
+                    );
+                    writer(format!("[Variable] {} : {}", var_name.unwrap().as_str(), boolean_value).as_str());
                 },
                 "B" => { // byte
-
+                    let mut byte_value: jint = 0;
+                    assert_log(
+                        (**jvmti).GetLocalInt.unwrap()(jvmti, thread, 0, slot, &mut byte_value as *mut jint),
+                        Some(GET_LOCAL_BYTE_ERROR),
+                        None
+                    );
+                    writer(format!("[Variable] {} : {}", var_name.unwrap().as_str(), byte_value).as_str());
                 },
                 "C" => { // char
-
+                    let mut char_value: jint = 0;
+                    assert_log(
+                        (**jvmti).GetLocalInt.unwrap()(jvmti, thread, 0, slot, &mut char_value as *mut jint),
+                        Some(GET_LOCAL_CHAR_ERROR),
+                        None
+                    );
+                    writer(format!("[Variable] {} : {}", var_name.unwrap().as_str(), char_value).as_str());
                 },
                 "S" => { // short
-
+                    let mut short_value: jint = 0;
+                    assert_log(
+                        (**jvmti).GetLocalInt.unwrap()(jvmti, thread, 0, slot, &mut short_value as *mut jint),
+                        Some(GET_LOCAL_SHORT_ERROR),
+                        None
+                    );
+                    writer(format!("[Variable] {} : {}", var_name.unwrap().as_str(), short_value).as_str());
                 },
                 "I" => {
                     let mut int_value: jint = 0;
