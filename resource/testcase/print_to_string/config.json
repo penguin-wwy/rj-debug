@@ -1,7 +1,7 @@
 {
   "verbose": false,
   "log_file": null,
-  "output_file": null,
+  "output_file": "result.txt",
   "bytecode_dump": [],
   "heap_print": false,
   "class_print": false,
