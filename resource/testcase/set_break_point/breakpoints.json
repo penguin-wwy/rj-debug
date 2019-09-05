@@ -2,14 +2,14 @@
   {
     "class_name": "empty",
     "method_name": "getFull",
-    "method_signature": null,
+    "method_signature": "(Ljava/lang/String;)I",
     "line": 17,
     "var": "len"
   },
   {
     "class_name": "empty",
     "method_name": "getEmpty",
-    "method_signature": null,
+    "method_signature": "(Ljava/lang/String;)I",
     "line": 31,
     "var": "len"
   }
